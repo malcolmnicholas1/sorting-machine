@@ -3,9 +3,9 @@ import { Canvas, useFrame } from '@react-three/fiber'
 import { useMemo, useRef } from 'react'
 
 const TYPE_CONFIG = {
-  cube: { color: '#ef4444', label: 'CUBES', binX: 5.1, platterY: 3.65, icon: '■' },
-  sphere: { color: '#22c55e', label: 'SPHERES', binX: 3.5, platterY: 5.4, icon: '●' },
-  pyramid: { color: '#3b82f6', label: 'PYRAMIDS', binX: 1.9, platterY: 1.9, icon: '▲' },
+  cube: { color: '#ef4444', label: 'CUBES', binX: 6.2, platterY: 3.65, icon: '■' },
+  sphere: { color: '#22c55e', label: 'SPHERES', binX: 3.65, platterY: 5.4, icon: '●' },
+  pyramid: { color: '#3b82f6', label: 'PYRAMIDS', binX: 1.05, platterY: 1.9, icon: '▲' },
 }
 
 const OBJECTS = Array.from({ length: 15 }, (_, index) => ({
@@ -109,12 +109,14 @@ function MechanicalGauge({ type }) {
 }
 
 function Platter({ y, label, accepts, color, type }) {
+  const labelPosition = type === 'sphere' ? [-1.7, -0.72, 0] : [-1.7, 0.25, 0]
+
   return (
     <group position={[-0.25, y, 0]}>
       <mesh receiveShadow rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[1.38, 1.38, 0.18, 64]} /><meshStandardMaterial color="#334155" metalness={0.65} roughness={0.32} /></mesh>
       <mesh position={[0, 0.11, 0]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[1.28, 0.035, 8, 48]} /><meshBasicMaterial color={color} /></mesh>
       <MechanicalGauge type={type} />
-      <Html position={[-1.7, 0.25, 0]} center transform distanceFactor={8} style={{ pointerEvents: 'none' }}>
+      <Html position={labelPosition} center transform distanceFactor={8} style={{ pointerEvents: 'none' }}>
         <div className="w-32 rounded-lg border border-white/15 bg-slate-950/85 px-2 py-1 text-center font-mono text-[9px] tracking-wider text-slate-200 shadow-xl">
           <span className="block text-[8px] text-slate-400">{label}</span><span style={{ color }}>{accepts}</span>
         </div>
@@ -138,8 +140,8 @@ function CollectionBin({ type }) {
     <group position={[binX, -0.75, 0]}>
       <mesh><boxGeometry args={[1.12, 0.9, 1.12]} /><meshStandardMaterial color="#182235" roughness={0.6} /></mesh>
       <mesh position={[0, 0.47, 0]}><boxGeometry args={[0.97, 0.07, 0.97]} /><meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.32} /></mesh>
-      <Html position={[0, -0.72, 0]} center transform distanceFactor={8} style={{ pointerEvents: 'none' }}>
-        <div className="w-24 rounded-md border px-2 py-1 text-center font-mono text-[9px] font-bold tracking-widest" style={{ background: `${color}22`, borderColor: color, color }}>{icon} {label}</div>
+      <Html position={[0, -0.72, 0.82]} center transform distanceFactor={8} style={{ pointerEvents: 'none' }}>
+        <div className="w-20 rounded-md border px-1.5 py-1 text-center font-mono text-[8px] font-bold tracking-wider" style={{ background: `${color}22`, borderColor: color, color }}>{icon} {label}</div>
       </Html>
     </group>
   )
