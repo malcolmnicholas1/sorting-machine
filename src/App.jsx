@@ -54,7 +54,7 @@ function MovingObject({ item }) {
       group.current.rotation.x += 0.08
     } else {
       const progress = (phase - 13.2) / 2.3
-      move(group.current, config.binX, -0.25, config.binZ * (1 - progress))
+      move(group.current, config.binX, -0.25, config.binZ)
       group.current.rotation.y += 0.12
     }
   })
