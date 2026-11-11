@@ -3,9 +3,9 @@ import { Canvas, useFrame } from '@react-three/fiber'
 import { useMemo, useRef } from 'react'
 
 const TYPE_CONFIG = {
-  cube: { color: '#ef4444', label: 'CUBES', binX: 6.2, platterY: 3.65, icon: '■' },
-  sphere: { color: '#22c55e', label: 'SPHERES', binX: 3.65, platterY: 5.4, icon: '●' },
-  pyramid: { color: '#3b82f6', label: 'PYRAMIDS', binX: 1.05, platterY: 1.9, icon: '▲' },
+  cube: { color: '#ef4444', label: 'CUBES', binX: 6.2, binZ: -1.25, chuteEntryX: 3.4, platterY: 3.65, icon: '■' },
+  sphere: { color: '#22c55e', label: 'SPHERES', binX: 3.65, binZ: 0, chuteEntryX: 2.85, platterY: 5.4, icon: '●' },
+  pyramid: { color: '#3b82f6', label: 'PYRAMIDS', binX: 1.05, binZ: 1.25, chuteEntryX: 2.15, platterY: 1.9, icon: '▲' },
 }
 
 const OBJECTS = Array.from({ length: 15 }, (_, index) => ({
@@ -46,15 +46,15 @@ function MovingObject({ item }) {
       group.current.rotation.x += 0.06
     } else if (phase < 10.6) {
       const progress = (phase - (5 + (5.4 - targetY) / 1.65)) / (10.6 - (5 + (5.4 - targetY) / 1.65))
-      move(group.current, -0.3 + progress * 3.15, targetY, z)
+      move(group.current, -0.3 + progress * (config.chuteEntryX + 0.3), targetY, z + progress * (config.binZ - z))
       group.current.rotation.y += 0.07
     } else if (phase < 13.2) {
       const progress = (phase - 10.6) / 2.6
-      move(group.current, 2.85 + progress * (config.binX - 2.85), targetY - progress * (targetY + 0.25), z)
+      move(group.current, config.chuteEntryX + progress * (config.binX - config.chuteEntryX), targetY - progress * (targetY + 0.25), config.binZ)
       group.current.rotation.x += 0.08
     } else {
       const progress = (phase - 13.2) / 2.3
-      move(group.current, config.binX, -0.25, z * (1 - progress))
+      move(group.current, config.binX, -0.25, config.binZ * (1 - progress))
       group.current.rotation.y += 0.12
     }
   })
@@ -125,19 +125,23 @@ function Platter({ y, label, accepts, color, type }) {
   )
 }
 
-function Chute({ y, color, binX }) {
+function Chute({ y, color, binX, binZ, chuteEntryX }) {
+  const entryLength = chuteEntryX + 0.3
+  const dropLength = Math.hypot(binX - chuteEntryX, y + 0.25)
+
   return (
-    <group>
-      <mesh position={[1.37, y, 0]} rotation={[0, 0, -0.1]}><boxGeometry args={[3.45, 0.13, 0.9]} /><meshStandardMaterial color="#475569" metalness={0.65} roughness={0.35} /></mesh>
-      <mesh position={[(2.85 + binX) / 2, y / 2, 0]} rotation={[0, 0, -Math.atan2(y + 0.25, binX - 2.85)]}><boxGeometry args={[Math.hypot(binX - 2.85, y + 0.25), 0.13, 0.9]} /><meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.2} metalness={0.45} /></mesh>
+    <group position={[0, 0, binZ]}>
+      <mesh position={[(chuteEntryX - 0.3) / 2, y, 0]}><boxGeometry args={[entryLength, 0.13, 0.78]} /><meshStandardMaterial color="#475569" metalness={0.65} roughness={0.35} /></mesh>
+      <mesh position={[(chuteEntryX + binX) / 2, y / 2, 0]} rotation={[0, 0, -Math.atan2(y + 0.25, binX - chuteEntryX)]}><boxGeometry args={[dropLength, 0.13, 0.78]} /><meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.2} metalness={0.45} /></mesh>
+      {[-0.42, 0.42].map((zOffset) => <mesh key={zOffset} position={[(chuteEntryX + binX) / 2, y / 2 + 0.13, zOffset]} rotation={[0, 0, -Math.atan2(y + 0.25, binX - chuteEntryX)]}><boxGeometry args={[dropLength, 0.08, 0.04]} /><meshStandardMaterial color="#cbd5e1" metalness={0.8} /></mesh>)}
     </group>
   )
 }
 
 function CollectionBin({ type }) {
-  const { color, label, binX, icon } = TYPE_CONFIG[type]
+  const { color, label, binX, binZ, icon } = TYPE_CONFIG[type]
   return (
-    <group position={[binX, -0.75, 0]}>
+    <group position={[binX, -0.75, binZ]}>
       <mesh><boxGeometry args={[1.12, 0.9, 1.12]} /><meshStandardMaterial color="#182235" roughness={0.6} /></mesh>
       <mesh position={[0, 0.47, 0]}><boxGeometry args={[0.97, 0.07, 0.97]} /><meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.32} /></mesh>
       <Html position={[0, -0.72, 0.82]} center transform distanceFactor={8} style={{ pointerEvents: 'none' }}>
@@ -169,9 +173,9 @@ function Machine() {
       <Platter y={3.65} label="STATION 02" accepts="LEVEL FEELERS · CUBES" color="#ef4444" type="cube" />
       <Platter y={1.9} label="STATION 03" accepts="TRI-NEST · PYRAMIDS" color="#3b82f6" type="pyramid" />
       <Platter y={0.15} label="STATION 04" accepts="UNSORTED DROP" color="#f59e0b" type="return" />
-      <Chute y={5.4} color="#22c55e" binX={3.5} />
-      <Chute y={3.65} color="#ef4444" binX={5.1} />
-      <Chute y={1.9} color="#3b82f6" binX={1.9} />
+      <Chute y={5.4} color="#22c55e" binX={TYPE_CONFIG.sphere.binX} binZ={TYPE_CONFIG.sphere.binZ} chuteEntryX={TYPE_CONFIG.sphere.chuteEntryX} />
+      <Chute y={3.65} color="#ef4444" binX={TYPE_CONFIG.cube.binX} binZ={TYPE_CONFIG.cube.binZ} chuteEntryX={TYPE_CONFIG.cube.chuteEntryX} />
+      <Chute y={1.9} color="#3b82f6" binX={TYPE_CONFIG.pyramid.binX} binZ={TYPE_CONFIG.pyramid.binZ} chuteEntryX={TYPE_CONFIG.pyramid.chuteEntryX} />
       <CollectionBin type="cube" />
       <CollectionBin type="sphere" />
       <CollectionBin type="pyramid" />
