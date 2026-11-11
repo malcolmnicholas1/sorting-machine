@@ -640,13 +640,13 @@ function App() {
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#07111e] text-white">
       <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_25%_0%,rgba(14,165,233,0.12),transparent_26%),radial-gradient(circle_at_80%_35%,rgba(168,85,247,0.11),transparent_23%)]" />
-      <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6 lg:px-10">
-        <a href="#home" className="flex items-center" aria-label="Team Time Bros home"><img src={teamLogo} alt="Team Time Bros" className="h-10 w-auto max-w-[205px] rounded-lg object-contain sm:h-12 sm:max-w-[250px]" /></a>
+      <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3 lg:px-10">
+        <a href="#home" className="flex items-center" aria-label="Team Time Bros home"><img src={teamLogo} alt="Team Time Bros" className="h-20 w-auto max-w-[360px] rounded-xl object-contain sm:h-24 sm:max-w-[430px]" /></a>
         <div className="hidden items-center gap-7 text-sm text-slate-300 md:flex"><a className="transition hover:text-cyan-200" href="#about">About</a><a className="transition hover:text-cyan-200" href="#designs">Designs</a><a className="transition hover:text-cyan-200" href="#challenge">Challenge</a></div>
         <a href="#designs" className="rounded-full border border-cyan-300/35 bg-cyan-300/10 px-4 py-2 text-xs font-semibold text-cyan-200 transition hover:bg-cyan-300 hover:text-slate-950">View prototypes</a>
       </nav>
 
-      <section id="home" className="mx-auto grid max-w-7xl gap-12 px-6 pb-24 pt-20 lg:grid-cols-[1.15fr_0.85fr] lg:px-10 lg:pb-36 lg:pt-28">
+      <section id="home" className="mx-auto grid max-w-7xl gap-12 px-6 pb-24 pt-8 lg:grid-cols-[1.15fr_0.85fr] lg:px-10 lg:pb-36 lg:pt-12">
         <div>
           <p className="mb-6 font-mono text-xs font-medium tracking-[0.25em] text-cyan-300">DESTINATION IMAGINATION · 2026–27</p>
           <h1 className="max-w-3xl text-5xl font-semibold leading-[0.95] tracking-[-0.055em] sm:text-7xl">Making time for <span className="bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent">big ideas.</span></h1>
