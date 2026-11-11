@@ -2,6 +2,8 @@ import { Html, OrbitControls, PerspectiveCamera, Sparkles } from '@react-three/d
 import { Canvas, useFrame } from '@react-three/fiber'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
+import teamIcon from './assets/team-time-bros-icon.png'
+import teamLogo from './assets/team-time-bros-logo.png'
 
 const TYPE_CONFIG = {
   cube: { color: '#ef4444', label: 'CUBES', binX: 6.2, binZ: -1.25, chuteEntryX: 3.4, platterY: 3.65, station: 1, icon: '■' },
@@ -639,7 +641,7 @@ function App() {
     <main className="min-h-screen overflow-x-hidden bg-[#07111e] text-white">
       <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_25%_0%,rgba(14,165,233,0.12),transparent_26%),radial-gradient(circle_at_80%_35%,rgba(168,85,247,0.11),transparent_23%)]" />
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6 lg:px-10">
-        <a href="#home" className="flex items-center gap-3 font-semibold tracking-tight"><span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-cyan-300 to-violet-500 text-lg text-slate-950">⌁</span><span>TEAM TIME BROS</span></a>
+        <a href="#home" className="flex items-center" aria-label="Team Time Bros home"><img src={teamLogo} alt="Team Time Bros" className="h-10 w-auto max-w-[205px] rounded-lg object-contain sm:h-12 sm:max-w-[250px]" /></a>
         <div className="hidden items-center gap-7 text-sm text-slate-300 md:flex"><a className="transition hover:text-cyan-200" href="#about">About</a><a className="transition hover:text-cyan-200" href="#designs">Designs</a><a className="transition hover:text-cyan-200" href="#challenge">Challenge</a></div>
         <a href="#designs" className="rounded-full border border-cyan-300/35 bg-cyan-300/10 px-4 py-2 text-xs font-semibold text-cyan-200 transition hover:bg-cyan-300 hover:text-slate-950">View prototypes</a>
       </nav>
@@ -652,7 +654,7 @@ function App() {
           <div className="mt-10 flex flex-wrap gap-3"><a href="#designs" className="rounded-full bg-cyan-300 px-5 py-3 text-sm font-bold text-slate-950 transition hover:bg-cyan-100">Explore our designs</a><a href="#challenge" className="rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:border-white/40 hover:bg-white/5">Challenge focus</a></div>
         </div>
         <div className="grid gap-4 self-end sm:grid-cols-2 lg:grid-cols-1">
-          <div className="rounded-3xl border border-white/10 bg-slate-900/65 p-6 shadow-xl shadow-slate-950/20"><p className="font-mono text-xs tracking-[0.18em] text-cyan-300">OUR MISSION</p><p className="mt-4 text-2xl font-medium leading-tight">Turn curious questions into working prototypes.</p></div>
+          <div className="flex items-center gap-5 rounded-3xl border border-white/10 bg-slate-900/65 p-6 shadow-xl shadow-slate-950/20"><img src={teamIcon} alt="Team Time Bros clock and growth icon" className="h-20 w-20 rounded-2xl object-cover shadow-lg shadow-cyan-950/40" /><div><p className="font-mono text-xs tracking-[0.18em] text-cyan-300">OUR MISSION</p><p className="mt-3 text-2xl font-medium leading-tight">Turn curious questions into working prototypes.</p></div></div>
           <div className="rounded-3xl border border-violet-300/15 bg-violet-400/10 p-6"><p className="font-mono text-xs tracking-[0.18em] text-violet-200">SEASON PROJECT</p><p className="mt-4 text-xl leading-snug text-slate-200">A visible, mechanical sorting system with a story worth sharing.</p></div>
         </div>
       </section>
