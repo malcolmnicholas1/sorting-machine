@@ -4,10 +4,13 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 
 const TYPE_CONFIG = {
-  cube: { color: '#ef4444', label: 'CUBES', binX: 6.2, binZ: -1.25, chuteEntryX: 3.4, platterY: 3.65, icon: '■' },
-  sphere: { color: '#22c55e', label: 'SPHERES', binX: 3.65, binZ: 0, chuteEntryX: 2.85, platterY: 5.4, icon: '●' },
-  pyramid: { color: '#3b82f6', label: 'PYRAMIDS', binX: 1.05, binZ: 1.25, chuteEntryX: 2.15, platterY: 1.9, icon: '▲' },
+  cube: { color: '#ef4444', label: 'CUBES', binX: 6.2, binZ: -1.25, chuteEntryX: 3.4, platterY: 3.65, station: 1, icon: '■' },
+  sphere: { color: '#22c55e', label: 'SPHERES', binX: 3.65, binZ: 0, chuteEntryX: 2.85, platterY: 5.4, station: 0, icon: '●' },
+  pyramid: { color: '#3b82f6', label: 'PYRAMIDS', binX: 1.05, binZ: 1.25, chuteEntryX: 2.15, platterY: 1.9, station: 2, icon: '▲' },
 }
+
+const STATION_HEIGHTS = [5.4, 3.65, 1.9]
+const BYPASS_X = -1.15
 
 const OBJECTS = Array.from({ length: 15 }, (_, index) => ({
   type: ['cube', 'sphere', 'pyramid'][index % 3],
@@ -42,20 +45,45 @@ function MovingObject({ item }) {
       const progress = phase / 5
       move(group.current, -6.1 + progress * 5.8, 0.42 + progress * 4.98, z)
       group.current.rotation.set(0, phase * 3.5, 0)
-    } else if (phase < 5 + (5.4 - targetY) / 1.65) {
-      move(group.current, -0.3, 5.4 - (phase - 5) * 1.65, z)
-      group.current.rotation.x += 0.06
-    } else if (phase < 10.6) {
-      const progress = (phase - (5 + (5.4 - targetY) / 1.65)) / (10.6 - (5 + (5.4 - targetY) / 1.65))
-      move(group.current, -0.3 + progress * (config.chuteEntryX + 0.3), targetY, z + progress * (config.binZ - z))
-      group.current.rotation.y += 0.07
-    } else if (phase < 13.2) {
-      const progress = (phase - 10.6) / 2.6
-      move(group.current, config.chuteEntryX + progress * (config.binX - config.chuteEntryX), targetY - progress * (targetY + 0.25), config.binZ)
-      group.current.rotation.x += 0.08
     } else {
-      move(group.current, config.binX, -0.25, config.binZ)
-      group.current.rotation.y += 0.12
+      const routeTime = phase - 5
+      const bypassDuration = 1.45
+      const bypassTime = config.station * bypassDuration
+
+      if (routeTime < bypassTime) {
+        const bypassIndex = Math.floor(routeTime / bypassDuration)
+        const bypassProgress = (routeTime % bypassDuration) / bypassDuration
+        if (bypassProgress < 0.38) {
+          const progress = bypassProgress / 0.38
+          move(group.current, -0.3 + progress * (BYPASS_X + 0.3), STATION_HEIGHTS[bypassIndex], z * (1 - progress))
+        } else {
+          const progress = (bypassProgress - 0.38) / 0.62
+          move(group.current, BYPASS_X, THREE.MathUtils.lerp(STATION_HEIGHTS[bypassIndex], STATION_HEIGHTS[bypassIndex + 1], progress), 0)
+        }
+        group.current.rotation.x += 0.06
+      } else {
+        const stationTime = routeTime - bypassTime
+        const stationStartX = config.station === 0 ? -0.3 : BYPASS_X
+        const approachDuration = 0.55
+        const gaugeDuration = 1.25
+        const chuteDuration = 2.6
+
+        if (stationTime < approachDuration) {
+          const progress = stationTime / approachDuration
+          move(group.current, THREE.MathUtils.lerp(stationStartX, -0.3, progress), targetY, 0)
+        } else if (stationTime < approachDuration + gaugeDuration) {
+          const progress = (stationTime - approachDuration) / gaugeDuration
+          move(group.current, -0.3 + progress * (config.chuteEntryX + 0.3), targetY, progress * config.binZ)
+          group.current.rotation.y += 0.07
+        } else if (stationTime < approachDuration + gaugeDuration + chuteDuration) {
+          const progress = (stationTime - approachDuration - gaugeDuration) / chuteDuration
+          move(group.current, config.chuteEntryX + progress * (config.binX - config.chuteEntryX), THREE.MathUtils.lerp(targetY, -0.25, progress), config.binZ)
+          group.current.rotation.x += 0.08
+        } else {
+          move(group.current, config.binX, -0.25, config.binZ)
+          group.current.rotation.y += 0.12
+        }
+      }
     }
   })
 
@@ -78,8 +106,8 @@ function MechanicalGauge({ type }) {
   if (type === 'sphere') {
     return (
       <group>
-        <mesh position={[0, 0.18, -0.42]} rotation={[0, 0, -0.42]}><boxGeometry args={[1.45, 0.1, 0.09]} /><meshStandardMaterial color="#0f172a" metalness={0.75} /></mesh>
-        <mesh position={[0, 0.18, 0.42]} rotation={[0, 0, 0.42]}><boxGeometry args={[1.45, 0.1, 0.09]} /><meshStandardMaterial color="#0f172a" metalness={0.75} /></mesh>
+        <mesh position={[0, 0.18, -0.42]} rotation={[-0.42, 0, 0]}><boxGeometry args={[1.45, 0.1, 0.09]} /><meshStandardMaterial color="#0f172a" metalness={0.75} /></mesh>
+        <mesh position={[0, 0.18, 0.42]} rotation={[0.42, 0, 0]}><boxGeometry args={[1.45, 0.1, 0.09]} /><meshStandardMaterial color="#0f172a" metalness={0.75} /></mesh>
         <mesh position={[0.4, 0.21, 0]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[0.13, 0.13, 0.82, 20]} /><meshStandardMaterial color="#22c55e" metalness={0.6} /></mesh>
         <mesh position={[0.4, 0.32, 0]}><sphereGeometry args={[0.17, 16, 16]} /><meshStandardMaterial color="#86efac" emissive="#22c55e" emissiveIntensity={0.3} /></mesh>
       </group>
@@ -110,11 +138,16 @@ function MechanicalGauge({ type }) {
 
 function Platter({ y, label, accepts, color, type }) {
   const labelPosition = type === 'sphere' ? [-1.7, -0.72, 0] : [-1.7, 0.25, 0]
+  const hasBypass = type !== 'return'
 
   return (
     <group position={[-0.25, y, 0]}>
-      <mesh receiveShadow rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[1.38, 1.38, 0.18, 64]} /><meshStandardMaterial color="#334155" metalness={0.65} roughness={0.32} /></mesh>
+      <mesh receiveShadow><cylinderGeometry args={[1.38, 1.38, 0.18, 64]} /><meshStandardMaterial color="#334155" metalness={0.65} roughness={0.32} /></mesh>
       <mesh position={[0, 0.11, 0]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[1.28, 0.035, 8, 48]} /><meshBasicMaterial color={color} /></mesh>
+      {hasBypass && <>
+        <mesh position={[-0.9, 0.105, 0]}><cylinderGeometry args={[0.24, 0.24, 0.025, 32]} /><meshBasicMaterial color="#050a12" /></mesh>
+        <mesh position={[-0.9, 0.12, 0]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[0.27, 0.025, 8, 32]} /><meshBasicMaterial color="#f59e0b" /></mesh>
+      </>}
       <MechanicalGauge type={type} />
       <Html position={labelPosition} center transform distanceFactor={8} style={{ pointerEvents: 'none' }}>
         <div className="w-32 rounded-lg border border-white/15 bg-slate-950/85 px-2 py-1 text-center font-mono text-[9px] tracking-wider text-slate-200 shadow-xl">
@@ -169,10 +202,10 @@ function Machine() {
       <mesh position={[-0.25, 2.3, 0]}><cylinderGeometry args={[0.3, 0.3, 7.1, 24]} /><meshStandardMaterial color="#172033" metalness={0.75} roughness={0.3} /></mesh>
       <mesh position={[-0.25, -1.3, 0]}><cylinderGeometry args={[2.1, 2.1, 0.35, 64]} /><meshStandardMaterial color="#202d42" metalness={0.5} /></mesh>
       <Conveyor position={[-3.2, 2.88, 0]} length={7.7} rotation={[0, 0, 0.72]} />
-      <Platter y={5.4} label="STATION 01" accepts="V-GROOVE · SPHERES" color="#22c55e" type="sphere" />
-      <Platter y={3.65} label="STATION 02" accepts="LEVEL FEELERS · CUBES" color="#ef4444" type="cube" />
-      <Platter y={1.9} label="STATION 03" accepts="TRI-NEST · PYRAMIDS" color="#3b82f6" type="pyramid" />
-      <Platter y={0.15} label="STATION 04" accepts="UNSORTED DROP" color="#f59e0b" type="return" />
+      <Platter y={5.0} label="STATION 01" accepts="V-GROOVE · SPHERES" color="#22c55e" type="sphere" />
+      <Platter y={3.25} label="STATION 02" accepts="LEVEL FEELERS · CUBES" color="#ef4444" type="cube" />
+      <Platter y={1.5} label="STATION 03" accepts="TRI-NEST · PYRAMIDS" color="#3b82f6" type="pyramid" />
+      <Platter y={-0.25} label="STATION 04" accepts="UNSORTED CATCH TRAY" color="#f59e0b" type="return" />
       <Chute y={5.4} color="#22c55e" binX={TYPE_CONFIG.sphere.binX} binZ={TYPE_CONFIG.sphere.binZ} chuteEntryX={TYPE_CONFIG.sphere.chuteEntryX} />
       <Chute y={3.65} color="#ef4444" binX={TYPE_CONFIG.cube.binX} binZ={TYPE_CONFIG.cube.binZ} chuteEntryX={TYPE_CONFIG.cube.chuteEntryX} />
       <Chute y={1.9} color="#3b82f6" binX={TYPE_CONFIG.pyramid.binX} binZ={TYPE_CONFIG.pyramid.binZ} chuteEntryX={TYPE_CONFIG.pyramid.chuteEntryX} />
@@ -192,7 +225,7 @@ function SortingMachineCanvas({ expanded, onExpand, onClose }) {
       <div className={`${expanded ? 'fixed inset-2 z-50 h-auto rounded-2xl sm:inset-5' : 'relative h-[560px] rounded-3xl lg:h-[680px]'} overflow-hidden border border-slate-700 bg-[#070d18] shadow-2xl shadow-cyan-950/30`}>
       <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between border-b border-white/10 bg-slate-950/65 px-5 py-4 backdrop-blur-md">
         <div><p className="font-mono text-[10px] tracking-[0.28em] text-cyan-300">TEAM TIME BROS · DESIGN 01</p><h2 className="mt-1 text-base font-semibold tracking-tight text-white">Mechanical Shape Sorter</h2></div>
-        <div className="flex items-center gap-3"><div className="hidden gap-5 font-mono text-[10px] tracking-wider text-slate-400 sm:flex"><span><i className="mr-2 inline-block h-2 w-2 rounded-full bg-emerald-400" />SIMULATION ACTIVE</span><span>4 STATIONS</span></div><button type="button" onClick={expanded ? onClose : onExpand} aria-label={expanded ? 'Close expanded prototype' : 'Expand prototype'} className="grid h-9 min-w-9 place-items-center rounded-lg border border-white/15 bg-white/5 px-2 text-lg text-white transition hover:border-cyan-300/60 hover:bg-cyan-300/10 hover:text-cyan-200">{expanded ? '×' : '⛶'}</button></div>
+        <div className="flex items-center gap-3"><div className="hidden gap-5 font-mono text-[10px] tracking-wider text-slate-400 sm:flex"><span><i className="mr-2 inline-block h-2 w-2 rounded-full bg-emerald-400" />SIMULATION ACTIVE</span><span>4 HORIZONTAL PLATTERS</span></div><button type="button" onClick={expanded ? onClose : onExpand} aria-label={expanded ? 'Close expanded prototype' : 'Expand prototype'} className="grid h-9 min-w-9 place-items-center rounded-lg border border-white/15 bg-white/5 px-2 text-lg text-white transition hover:border-cyan-300/60 hover:bg-cyan-300/10 hover:text-cyan-200">{expanded ? '×' : '⛶'}</button></div>
       </div>
       <Canvas shadows dpr={[1, 2]} gl={{ antialias: true }}>
         <PerspectiveCamera makeDefault position={[10, 7.2, 13]} fov={38} />
