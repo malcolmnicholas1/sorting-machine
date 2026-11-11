@@ -179,13 +179,13 @@ function Machine() {
   )
 }
 
-function App() {
+function SortingMachineCanvas() {
   return (
-    <main className="h-screen min-h-[640px] overflow-hidden bg-[#070d18] text-white">
-      <header className="absolute inset-x-0 top-0 z-10 flex items-center justify-between border-b border-white/10 bg-slate-950/65 px-5 py-4 backdrop-blur-md md:px-8">
-        <div><p className="font-mono text-xs tracking-[0.28em] text-cyan-300">SORTWORKS</p><h1 className="mt-1 text-lg font-semibold tracking-tight">Shape Classification Line</h1></div>
-        <div className="hidden gap-5 font-mono text-[10px] tracking-wider text-slate-400 sm:flex"><span><i className="mr-2 inline-block h-2 w-2 rounded-full bg-emerald-400" />SYSTEM ONLINE</span><span>4 PLATTERS</span><span>3 OUTPUTS</span></div>
-      </header>
+    <div className="relative h-[560px] overflow-hidden rounded-3xl border border-slate-700 bg-[#070d18] shadow-2xl shadow-cyan-950/30 lg:h-[680px]">
+      <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between border-b border-white/10 bg-slate-950/65 px-5 py-4 backdrop-blur-md">
+        <div><p className="font-mono text-[10px] tracking-[0.28em] text-cyan-300">TEAM TIME BROS · DESIGN 01</p><h2 className="mt-1 text-base font-semibold tracking-tight text-white">Mechanical Shape Sorter</h2></div>
+        <div className="hidden gap-5 font-mono text-[10px] tracking-wider text-slate-400 sm:flex"><span><i className="mr-2 inline-block h-2 w-2 rounded-full bg-emerald-400" />SIMULATION ACTIVE</span><span>4 STATIONS</span></div>
+      </div>
       <Canvas shadows dpr={[1, 2]} gl={{ antialias: true }}>
         <PerspectiveCamera makeDefault position={[10, 7.2, 13]} fov={38} />
         <color attach="background" args={['#070d18']} />
@@ -200,6 +200,54 @@ function App() {
       </Canvas>
       <div className="pointer-events-none absolute bottom-5 left-5 z-10 rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 font-mono text-[10px] leading-5 tracking-wide text-slate-300 backdrop-blur-md"><span className="text-cyan-300">CONTROLS</span><br />DRAG TO ORBIT · SCROLL TO ZOOM</div>
       <div className="pointer-events-none absolute bottom-5 right-5 z-10 hidden rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 font-mono text-[10px] leading-5 tracking-wide text-slate-400 backdrop-blur-md sm:block"><span className="text-white">MECHANICAL GAUGES</span><br />V-GROOVE → LEVEL FEELERS → TRI-NEST<br />UNSORTED → AMBER COLLECTOR</div>
+    </div>
+  )
+}
+
+function App() {
+  return (
+    <main className="min-h-screen overflow-x-hidden bg-[#07111e] text-white">
+      <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_25%_0%,rgba(14,165,233,0.12),transparent_26%),radial-gradient(circle_at_80%_35%,rgba(168,85,247,0.11),transparent_23%)]" />
+      <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6 lg:px-10">
+        <a href="#home" className="flex items-center gap-3 font-semibold tracking-tight"><span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-cyan-300 to-violet-500 text-lg text-slate-950">⌁</span><span>TEAM TIME BROS</span></a>
+        <div className="hidden items-center gap-7 text-sm text-slate-300 md:flex"><a className="transition hover:text-cyan-200" href="#about">About</a><a className="transition hover:text-cyan-200" href="#designs">Designs</a><a className="transition hover:text-cyan-200" href="#challenge">Challenge</a></div>
+        <a href="#designs" className="rounded-full border border-cyan-300/35 bg-cyan-300/10 px-4 py-2 text-xs font-semibold text-cyan-200 transition hover:bg-cyan-300 hover:text-slate-950">View prototypes</a>
+      </nav>
+
+      <section id="home" className="mx-auto grid max-w-7xl gap-12 px-6 pb-24 pt-20 lg:grid-cols-[1.15fr_0.85fr] lg:px-10 lg:pb-36 lg:pt-28">
+        <div>
+          <p className="mb-6 font-mono text-xs font-medium tracking-[0.25em] text-cyan-300">DESTINATION IMAGINATION · 2026–27</p>
+          <h1 className="max-w-3xl text-5xl font-semibold leading-[0.95] tracking-[-0.055em] sm:text-7xl">Making time for <span className="bg-gradient-to-r from-cyan-200 via-sky-300 to-violet-300 bg-clip-text text-transparent">big ideas.</span></h1>
+          <p className="mt-8 max-w-xl text-lg leading-8 text-slate-300">We’re Team Time Bros: makers, storytellers, and problem-solvers building inventive ways to get things sorted.</p>
+          <div className="mt-10 flex flex-wrap gap-3"><a href="#designs" className="rounded-full bg-cyan-300 px-5 py-3 text-sm font-bold text-slate-950 transition hover:bg-cyan-100">Explore our designs</a><a href="#challenge" className="rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:border-white/40 hover:bg-white/5">Challenge focus</a></div>
+        </div>
+        <div className="grid gap-4 self-end sm:grid-cols-2 lg:grid-cols-1">
+          <div className="rounded-3xl border border-white/10 bg-slate-900/65 p-6 shadow-xl shadow-slate-950/20"><p className="font-mono text-xs tracking-[0.18em] text-cyan-300">OUR MISSION</p><p className="mt-4 text-2xl font-medium leading-tight">Turn curious questions into working prototypes.</p></div>
+          <div className="rounded-3xl border border-violet-300/15 bg-violet-400/10 p-6"><p className="font-mono text-xs tracking-[0.18em] text-violet-200">SEASON PROJECT</p><p className="mt-4 text-xl leading-snug text-slate-200">A visible, mechanical sorting system with a story worth sharing.</p></div>
+        </div>
+      </section>
+
+      <section id="about" className="border-y border-white/10 bg-white/[0.025]">
+        <div className="mx-auto grid max-w-7xl gap-10 px-6 py-20 lg:grid-cols-[0.8fr_1.2fr] lg:px-10">
+          <div><p className="font-mono text-xs tracking-[0.22em] text-cyan-300">ABOUT THE TEAM</p><h2 className="mt-4 text-4xl font-semibold tracking-tight">The Time Bros workshop</h2></div>
+          <p className="max-w-3xl text-lg leading-8 text-slate-300">This is our shared build journal for testing mechanisms, comparing ideas, and documenting the designs that become part of our presentation. Every prototype starts as a question, becomes a model, and earns its place through iteration.</p>
+        </div>
+      </section>
+
+      <section id="designs" className="mx-auto max-w-7xl px-6 py-24 lg:px-10">
+        <div className="mb-10 flex flex-wrap items-end justify-between gap-5"><div><p className="font-mono text-xs tracking-[0.22em] text-cyan-300">DESIGNS</p><h2 className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">Prototype gallery</h2></div><p className="max-w-sm text-sm leading-6 text-slate-400">Interactive models and in-progress concepts from the Team Time Bros workshop.</p></div>
+        <div className="mb-6 grid gap-4 md:grid-cols-3">
+          <article className="rounded-2xl border border-cyan-300/35 bg-cyan-300/10 p-5"><p className="font-mono text-[10px] tracking-[0.2em] text-cyan-200">01 · LIVE MODEL</p><h3 className="mt-3 text-xl font-semibold">Mechanical Shape Sorter</h3><p className="mt-2 text-sm leading-6 text-slate-300">A single incline conveyor and three passive shape-gauge stations.</p></article>
+          <article className="rounded-2xl border border-white/10 bg-slate-900/55 p-5"><p className="font-mono text-[10px] tracking-[0.2em] text-slate-400">02 · NEXT PROTOTYPE</p><h3 className="mt-3 text-xl font-semibold">Arrival Effect</h3><p className="mt-2 text-sm leading-6 text-slate-400">A future interactive model for the story’s technical entrance.</p></article>
+          <article className="rounded-2xl border border-white/10 bg-slate-900/55 p-5"><p className="font-mono text-[10px] tracking-[0.2em] text-slate-400">03 · NEXT PROTOTYPE</p><h3 className="mt-3 text-xl font-semibold">Sort Item Studies</h3><p className="mt-2 text-sm leading-6 text-slate-400">A future comparison model for visible, risk-taking sort items.</p></article>
+        </div>
+        <SortingMachineCanvas />
+      </section>
+
+      <section id="challenge" className="border-t border-white/10 bg-slate-900/45">
+        <div className="mx-auto max-w-7xl px-6 py-24 lg:px-10"><p className="font-mono text-xs tracking-[0.22em] text-cyan-300">CHALLENGE PLANNING</p><h2 className="mt-3 max-w-2xl text-4xl font-semibold tracking-tight">Design decisions we’re tracking</h2><div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-4"><div className="rounded-2xl border border-white/10 bg-slate-950/45 p-5"><strong className="block text-cyan-200">Sorting system</strong><p className="mt-2 text-sm leading-6 text-slate-400">Use technical methods to move items into defined groups.</p></div><div className="rounded-2xl border border-white/10 bg-slate-950/45 p-5"><strong className="block text-cyan-200">Visible evidence</strong><p className="mt-2 text-sm leading-6 text-slate-400">Keep item grouping clear and easy for appraisers to verify.</p></div><div className="rounded-2xl border border-white/10 bg-slate-950/45 p-5"><strong className="block text-cyan-200">Random start</strong><p className="mt-2 text-sm leading-6 text-slate-400">Plan for randomized item placement before each sorting attempt.</p></div><div className="rounded-2xl border border-white/10 bg-slate-950/45 p-5"><strong className="block text-cyan-200">Story integration</strong><p className="mt-2 text-sm leading-6 text-slate-400">Make the machine and its sorting process matter to the story.</p></div></div><p className="mt-8 max-w-3xl text-sm leading-6 text-slate-500">This workspace is for planning and prototyping. The team should continue to verify all build and tournament decisions against the official Challenge materials, Rules of the Road, and published clarifications.</p></div>
+      </section>
+      <footer className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-8 text-sm text-slate-500 lg:px-10"><span>TEAM TIME BROS</span><span>Design. Test. Iterate.</span></footer>
     </main>
   )
 }
