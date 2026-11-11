@@ -1,6 +1,6 @@
 import { Html, OrbitControls, PerspectiveCamera } from '@react-three/drei'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 
 const TYPE_CONFIG = {
@@ -185,12 +185,14 @@ function Machine() {
   )
 }
 
-function SortingMachineCanvas() {
+function SortingMachineCanvas({ expanded, onExpand, onClose }) {
   return (
-    <div className="relative h-[560px] overflow-hidden rounded-3xl border border-slate-700 bg-[#070d18] shadow-2xl shadow-cyan-950/30 lg:h-[680px]">
+    <>
+      {expanded && <div className="fixed inset-0 z-40 bg-black/85 backdrop-blur-md" />}
+      <div className={`${expanded ? 'fixed inset-2 z-50 h-auto rounded-2xl sm:inset-5' : 'relative h-[560px] rounded-3xl lg:h-[680px]'} overflow-hidden border border-slate-700 bg-[#070d18] shadow-2xl shadow-cyan-950/30`}>
       <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between border-b border-white/10 bg-slate-950/65 px-5 py-4 backdrop-blur-md">
         <div><p className="font-mono text-[10px] tracking-[0.28em] text-cyan-300">TEAM TIME BROS · DESIGN 01</p><h2 className="mt-1 text-base font-semibold tracking-tight text-white">Mechanical Shape Sorter</h2></div>
-        <div className="hidden gap-5 font-mono text-[10px] tracking-wider text-slate-400 sm:flex"><span><i className="mr-2 inline-block h-2 w-2 rounded-full bg-emerald-400" />SIMULATION ACTIVE</span><span>4 STATIONS</span></div>
+        <div className="flex items-center gap-3"><div className="hidden gap-5 font-mono text-[10px] tracking-wider text-slate-400 sm:flex"><span><i className="mr-2 inline-block h-2 w-2 rounded-full bg-emerald-400" />SIMULATION ACTIVE</span><span>4 STATIONS</span></div><button type="button" onClick={expanded ? onClose : onExpand} aria-label={expanded ? 'Close expanded prototype' : 'Expand prototype'} className="grid h-9 min-w-9 place-items-center rounded-lg border border-white/15 bg-white/5 px-2 text-lg text-white transition hover:border-cyan-300/60 hover:bg-cyan-300/10 hover:text-cyan-200">{expanded ? '×' : '⛶'}</button></div>
       </div>
       <Canvas shadows dpr={[1, 2]} gl={{ antialias: true }}>
         <PerspectiveCamera makeDefault position={[10, 7.2, 13]} fov={38} />
@@ -206,7 +208,8 @@ function SortingMachineCanvas() {
       </Canvas>
       <div className="pointer-events-none absolute bottom-5 left-5 z-10 rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 font-mono text-[10px] leading-5 tracking-wide text-slate-300 backdrop-blur-md"><span className="text-cyan-300">CONTROLS</span><br />DRAG TO ORBIT · SCROLL TO ZOOM</div>
       <div className="pointer-events-none absolute bottom-5 right-5 z-10 hidden rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 font-mono text-[10px] leading-5 tracking-wide text-slate-400 backdrop-blur-md sm:block"><span className="text-white">MECHANICAL GAUGES</span><br />V-GROOVE → LEVEL FEELERS → TRI-NEST<br />UNSORTED → AMBER COLLECTOR</div>
-    </div>
+      </div>
+    </>
   )
 }
 
@@ -358,12 +361,14 @@ function VisionObject() {
   return <group ref={object}><Shape type={current.type} color={current.color} /></group>
 }
 
-function VisionSorterCanvas() {
+function VisionSorterCanvas({ expanded, onExpand, onClose }) {
   return (
-    <div id="design-02" className="relative mt-12 h-[540px] overflow-hidden rounded-3xl border border-slate-700 bg-[#070d18] shadow-2xl shadow-cyan-950/30 lg:h-[640px]">
+    <>
+      {expanded && <div className="fixed inset-0 z-40 bg-black/85 backdrop-blur-md" />}
+      <div id="design-02" className={`${expanded ? 'fixed inset-2 z-50 h-auto rounded-2xl sm:inset-5' : 'relative mt-12 h-[540px] rounded-3xl lg:h-[640px]'} overflow-hidden border border-slate-700 bg-[#070d18] shadow-2xl shadow-cyan-950/30`}>
       <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between border-b border-white/10 bg-slate-950/75 px-5 py-4 backdrop-blur-md">
         <div><p className="font-mono text-[10px] tracking-[0.28em] text-cyan-300">TEAM TIME BROS · DESIGN 02</p><h2 className="mt-1 text-base font-semibold text-white">Vision-Guided Pick &amp; Place</h2></div>
-        <div className="hidden font-mono text-[10px] tracking-wider text-slate-400 sm:block"><span className="mr-2 inline-block h-2 w-2 rounded-full bg-emerald-400" />CAMERA + ROBOT ARM</div>
+        <div className="flex items-center gap-3"><div className="hidden font-mono text-[10px] tracking-wider text-slate-400 sm:block"><span className="mr-2 inline-block h-2 w-2 rounded-full bg-emerald-400" />CAMERA + ROBOT ARM</div><button type="button" onClick={expanded ? onClose : onExpand} aria-label={expanded ? 'Close expanded prototype' : 'Expand prototype'} className="grid h-9 min-w-9 place-items-center rounded-lg border border-white/15 bg-white/5 px-2 text-lg text-white transition hover:border-cyan-300/60 hover:bg-cyan-300/10 hover:text-cyan-200">{expanded ? '×' : '⛶'}</button></div>
       </div>
       <Canvas shadows dpr={[1, 2]} gl={{ antialias: true }}>
         <PerspectiveCamera makeDefault position={[8.5, 7.3, 10.5]} fov={38} />
@@ -382,11 +387,30 @@ function VisionSorterCanvas() {
       </Canvas>
       <div className="pointer-events-none absolute bottom-4 left-4 z-10 rounded-xl border border-white/10 bg-slate-950/75 px-3 py-2 font-mono text-[9px] leading-5 tracking-wide text-slate-300 backdrop-blur-md"><span className="text-cyan-300">PROCESS</span><br />DETECT → CLASSIFY → PICK → PLACE</div>
       <div className="pointer-events-none absolute bottom-4 right-4 z-10 rounded-xl border border-white/10 bg-slate-950/75 px-3 py-2 font-mono text-[9px] leading-5 tracking-wide text-slate-400 backdrop-blur-md">DRAG TO ORBIT · SCROLL TO ZOOM</div>
-    </div>
+      </div>
+    </>
   )
 }
 
 function App() {
+  const [expandedPrototype, setExpandedPrototype] = useState(null)
+
+  useEffect(() => {
+    if (!expandedPrototype) return undefined
+
+    const previousOverflow = document.body.style.overflow
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') setExpandedPrototype(null)
+    }
+
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [expandedPrototype])
+
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#07111e] text-white">
       <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_25%_0%,rgba(14,165,233,0.12),transparent_26%),radial-gradient(circle_at_80%_35%,rgba(168,85,247,0.11),transparent_23%)]" />
@@ -423,8 +447,8 @@ function App() {
           <a href="#design-02" className="rounded-2xl border border-cyan-300/35 bg-cyan-300/10 p-5 transition hover:bg-cyan-300/15"><p className="font-mono text-[10px] tracking-[0.2em] text-cyan-200">02 · LIVE MODEL</p><h3 className="mt-3 text-xl font-semibold">Vision-Guided Pick &amp; Place</h3><p className="mt-2 text-sm leading-6 text-slate-300">A camera classifies each shape; a robotic arm moves it to the matching bin.</p></a>
           <article className="rounded-2xl border border-white/10 bg-slate-900/55 p-5"><p className="font-mono text-[10px] tracking-[0.2em] text-slate-400">03 · NEXT PROTOTYPE</p><h3 className="mt-3 text-xl font-semibold">Arrival Effect</h3><p className="mt-2 text-sm leading-6 text-slate-400">A future interactive model for the story’s technical entrance.</p></article>
         </div>
-        <SortingMachineCanvas />
-        <VisionSorterCanvas />
+        <SortingMachineCanvas expanded={expandedPrototype === 'mechanical'} onExpand={() => setExpandedPrototype('mechanical')} onClose={() => setExpandedPrototype(null)} />
+        <VisionSorterCanvas expanded={expandedPrototype === 'vision'} onExpand={() => setExpandedPrototype('vision')} onClose={() => setExpandedPrototype(null)} />
       </section>
 
       <section id="challenge" className="border-t border-white/10 bg-slate-900/45">
