@@ -30,6 +30,7 @@ export function PrototypeStage({
   anyExpanded,
   onExpand,
   onClose,
+  subHeader,
   leftHud,
   rightHud,
   children,
@@ -113,6 +114,12 @@ export function PrototypeStage({
             </button>
           </div>
         </div>
+
+        {subHeader && (
+          <div className="absolute inset-x-0 top-[73px] z-10 flex flex-wrap items-center gap-1.5 px-5 py-2.5">
+            {subHeader}
+          </div>
+        )}
 
         <Canvas
           shadows

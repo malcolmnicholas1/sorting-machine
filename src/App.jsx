@@ -6,6 +6,15 @@ import { ArrivalEffectScene } from './scenes/ArrivalEffect.jsx'
 import { MechanicalSorterScene } from './scenes/MechanicalSorter.jsx'
 import { VisionSorterScene } from './scenes/VisionSorter.jsx'
 
+const MECHANICAL_CAMERA_PRESETS = [
+  { id: 'overview', label: 'OVERVIEW' },
+  { id: 'hopper', label: 'HOPPER' },
+  { id: 'st01', label: 'ST 01 · SPHERES' },
+  { id: 'st02', label: 'ST 02 · CUBES' },
+  { id: 'st03', label: 'ST 03 · PYRAMIDS' },
+  { id: 'bins', label: 'SORTED BINS' },
+]
+
 const PROTOTYPE_CARDS = [
   {
     id: 'design-01',
@@ -54,6 +63,7 @@ const CHALLENGE_PILLARS = [
 
 function App() {
   const [expandedPrototype, setExpandedPrototype] = useState(null)
+  const [mechanicalCamera, setMechanicalCamera] = useState('overview')
 
   useEffect(() => {
     if (!expandedPrototype) return undefined
@@ -203,32 +213,56 @@ function App() {
           eyebrow="TEAM TIME BROS · DESIGN 01"
           title="Mechanical Shape Sorter"
           statusLabel="SIMULATION ACTIVE"
-          secondaryStatus="4 HORIZONTAL PLATTERS"
+          secondaryStatus="4 ROTARY CASCADE STATIONS"
           accent="cyan"
           bgClass="bg-[#070d18]"
-          heightClass="h-[560px] lg:h-[680px]"
+          heightClass="h-[580px] lg:h-[700px]"
           expanded={expandedPrototype === 'mechanical'}
           anyExpanded={anyExpanded}
           onExpand={() => setExpandedPrototype('mechanical')}
           onClose={() => setExpandedPrototype(null)}
+          subHeader={
+            <>
+              <span className="mr-1 hidden font-mono text-[9px] tracking-widest text-slate-400 sm:inline">
+                FOCUS:
+              </span>
+              {MECHANICAL_CAMERA_PRESETS.map((preset) => {
+                const active = mechanicalCamera === preset.id
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => setMechanicalCamera(preset.id)}
+                    className={`rounded-md border px-2 py-1 font-mono text-[9px] tracking-wider transition ${
+                      active
+                        ? 'border-cyan-300 bg-cyan-300/20 text-cyan-100'
+                        : 'border-white/10 bg-slate-950/65 text-slate-300 hover:border-cyan-300/45 hover:text-cyan-200'
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                )
+              })}
+            </>
+          }
           leftHud={
             <>
               <span className="text-cyan-300">CONTROLS</span>
               <br />
-              DRAG TO ORBIT · SCROLL TO ZOOM
+              DRAG TO ORBIT · SCROLL TO ZOOM · CLICK STATION PILLS TO FOCUS
             </>
           }
           rightHud={
             <>
-              <span className="text-white">MECHANICAL GAUGES</span>
+              <span className="text-white">ROTARY CASCADE GAUGES</span>
               <br />
-              V-GROOVE → LEVEL FEELERS → TRI-NEST
+              V-GROOVE → FEELER GATE → TRI-NEST
               <br />
               UNSORTED → AMBER COLLECTOR
             </>
           }
         >
-          <MechanicalSorterScene />
+          <MechanicalSorterScene activePreset={mechanicalCamera} />
         </PrototypeStage>
 
         <PrototypeStage

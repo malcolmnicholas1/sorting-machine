@@ -2,15 +2,17 @@ import { useMemo } from 'react'
 import * as THREE from 'three'
 
 const GEOMETRIES = {
-  sphere: new THREE.SphereGeometry(0.28, 24, 24),
-  pyramid: new THREE.ConeGeometry(0.37, 0.62, 4),
-  cube: new THREE.BoxGeometry(0.5, 0.5, 0.5),
+  sphere: new THREE.SphereGeometry(0.26, 24, 24),
+  pyramid: new THREE.ConeGeometry(0.35, 0.58, 4),
+  cube: new THREE.BoxGeometry(0.46, 0.46, 0.46),
+  unsorted: new THREE.CylinderGeometry(0.24, 0.24, 0.28, 6),
 }
 
 const MATERIAL_PROPS = {
   sphere: { roughness: 0.24, metalness: 0.25 },
   pyramid: { roughness: 0.3, metalness: 0.18 },
   cube: { roughness: 0.24, metalness: 0.22 },
+  unsorted: { roughness: 0.28, metalness: 0.35 },
 }
 
 const materialCache = new Map()
@@ -31,4 +33,3 @@ export function Shape({ type, color }) {
 
   return <mesh castShadow geometry={geometry} material={material} rotation={rotation} />
 }
-

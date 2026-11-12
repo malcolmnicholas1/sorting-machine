@@ -1,55 +1,152 @@
 import { Html, OrbitControls, PerspectiveCamera } from '@react-three/drei'
-import { useRef } from 'react'
+import { useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { Conveyor } from '../components/Conveyor.jsx'
 import { Shape } from '../components/Shape.jsx'
 import { useSimulationFrame } from '../components/useSimulationFrame.js'
 
+const CAMERA_PRESETS = {
+  overview: { position: [10.4, 7.2, 13.2], target: [0.3, 2.3, 0.2] },
+  hopper: { position: [-3.8, 3.2, 5.6], target: [-5.6, 1.1, -0.45] },
+  st01: { position: [3.2, 6.9, 4.4], target: [0.4, 5.15, -0.3] },
+  st02: { position: [3.2, 5.1, 4.4], target: [0.4, 3.4, 0] },
+  st03: { position: [3.2, 3.4, 4.4], target: [0.4, 1.65, 0.3] },
+  bins: { position: [8.4, 3.8, 6.2], target: [4.2, -0.2, 0.4] },
+}
+
 const TYPE_CONFIG = {
-  cube: {
-    color: '#ef4444',
-    label: 'CUBES',
-    binX: 6.2,
-    binZ: -1.25,
-    chuteEntryX: 3.4,
-    platterY: 3.65,
-    station: 1,
-    icon: '■',
-  },
   sphere: {
     color: '#22c55e',
     label: 'SPHERES',
-    binX: 3.65,
-    binZ: 0,
-    chuteEntryX: 2.85,
-    platterY: 5.4,
+    binX: 5.4,
+    binZ: -1.75,
+    chuteEntryX: 1.28,
+    chuteZ: -1.1,
+    platterY: 5.34,
     station: 0,
     icon: '●',
+  },
+  cube: {
+    color: '#ef4444',
+    label: 'CUBES',
+    binX: 4.65,
+    binZ: 0,
+    chuteEntryX: 1.28,
+    chuteZ: 0,
+    platterY: 3.59,
+    station: 1,
+    icon: '■',
   },
   pyramid: {
     color: '#3b82f6',
     label: 'PYRAMIDS',
-    binX: 1.05,
-    binZ: 1.25,
-    chuteEntryX: 2.15,
-    platterY: 1.9,
+    binX: 3.9,
+    binZ: 1.75,
+    chuteEntryX: 1.28,
+    chuteZ: 1.1,
+    platterY: 1.84,
     station: 2,
     icon: '▲',
   },
+  unsorted: {
+    color: '#f59e0b',
+    label: 'UNSORTED',
+    binX: 2.55,
+    binZ: 2.85,
+    chuteEntryX: 1.15,
+    chuteZ: 2.0,
+    platterY: 0.09,
+    station: 3,
+    icon: '↻',
+  },
 }
 
-const STATION_HEIGHTS = [5.4, 3.65, 1.9]
-const BYPASS_X = -1.15
+const STATION_ITEM_Y = [5.34, 3.59, 1.84, 0.09]
+const BYPASS_PORT = { x: -0.58, z: 0.72 }
+const ENTRY_PORT = { x: -0.68, z: -0.45 }
 
-const OBJECTS = Array.from({ length: 15 }, (_, index) => ({
-  id: index,
-  type: ['cube', 'sphere', 'pyramid'][index % 3],
-  offset: index * 1.22,
-  lane: (index % 3) - 1,
-}))
+const BIN_SLOTS = [
+  [-0.24, -0.22],
+  [0.24, -0.22],
+  [-0.24, 0.22],
+  [0.24, 0.22],
+  [0, 0],
+]
+
+const SEQUENCE = [
+  'sphere',
+  'cube',
+  'pyramid',
+  'sphere',
+  'cube',
+  'pyramid',
+  'unsorted',
+  'sphere',
+  'cube',
+  'pyramid',
+  'sphere',
+  'cube',
+  'pyramid',
+  'unsorted',
+  'sphere',
+  'cube',
+]
+
+const OBJECTS = SEQUENCE.map((type, index) => {
+  const sameTypeIndex = SEQUENCE.slice(0, index).filter((t) => t === type).length
+  return {
+    id: index,
+    type,
+    offset: index * 1.15,
+    lane: (index % 3) - 1,
+    slot: BIN_SLOTS[sameTypeIndex % BIN_SLOTS.length],
+  }
+})
+
+const HOPPER_PILE = [
+  { type: 'sphere', color: '#22c55e', pos: [-0.24, 0.22, -0.16], rot: [0, 0, 0] },
+  { type: 'cube', color: '#ef4444', pos: [0.22, 0.2, 0.18], rot: [0.3, 0.5, 0.1] },
+  { type: 'pyramid', color: '#3b82f6', pos: [-0.08, 0.24, 0.22], rot: [0.1, 0.8, -0.2] },
+  { type: 'unsorted', color: '#f59e0b', pos: [0.18, 0.18, -0.2], rot: [0.2, 0.4, 0] },
+]
 
 function move(object, x, y, z) {
   object.position.set(x, y, z)
+}
+
+function CameraRig({ activePreset }) {
+  const controlsRef = useRef()
+  const desiredPos = useMemo(() => new THREE.Vector3(), [])
+  const desiredTarget = useMemo(() => new THREE.Vector3(), [])
+  const lastPresetRef = useRef(activePreset)
+  const transitionLeftRef = useRef(0)
+
+  useSimulationFrame((_, dt, state) => {
+    if (lastPresetRef.current !== activePreset) {
+      lastPresetRef.current = activePreset
+      transitionLeftRef.current = 1.1
+    }
+    if (transitionLeftRef.current <= 0 || !controlsRef.current) return
+    const preset = CAMERA_PRESETS[activePreset] || CAMERA_PRESETS.overview
+    desiredPos.set(...preset.position)
+    desiredTarget.set(...preset.target)
+
+    const step = Math.min(1, (dt || 0.016) * 5.5)
+    state.camera.position.lerp(desiredPos, step)
+    controlsRef.current.target.lerp(desiredTarget, step)
+    controlsRef.current.update()
+    transitionLeftRef.current -= dt || 0.016
+  })
+
+  return (
+    <OrbitControls
+      ref={controlsRef}
+      target={[0.3, 2.3, 0.2]}
+      minDistance={4.5}
+      maxDistance={23}
+      maxPolarAngle={Math.PI / 2.02}
+    />
+  )
 }
 
 function MovingObject({ item }) {
@@ -57,77 +154,103 @@ function MovingObject({ item }) {
   const config = TYPE_CONFIG[item.type]
 
   useSimulationFrame((elapsed, dt) => {
-    const phase = (elapsed + item.offset) % 15.5
-    const z = item.lane * 0.34
+    const cycleDuration = 18.4
+    const phase = (elapsed + item.offset) % cycleDuration
+    const beltZ = -0.45 + item.lane * 0.22
     const targetY = config.platterY
 
-    if (phase < 5) {
-      const progress = phase / 5
-      move(group.current, -6.1 + progress * 5.8, 0.42 + progress * 4.98, z)
-      group.current.rotation.set(0, phase * 3.5, 0)
-    } else {
-      const routeTime = phase - 5
-      const bypassDuration = 1.45
-      const bypassTime = config.station * bypassDuration
+    // 1. Incline conveyor climb from feed hopper to Station 01 entry
+    if (phase < 4.4) {
+      const progress = phase / 4.4
+      move(
+        group.current,
+        THREE.MathUtils.lerp(-5.85, ENTRY_PORT.x, progress),
+        THREE.MathUtils.lerp(0.88, STATION_ITEM_Y[0], progress),
+        THREE.MathUtils.lerp(beltZ, ENTRY_PORT.z, progress * 0.6),
+      )
+      group.current.rotation.set(0, phase * 1.8, 0.72 * (1 - progress * 0.25))
+      return
+    }
 
-      if (routeTime < bypassTime) {
-        const bypassIndex = Math.floor(routeTime / bypassDuration)
-        const bypassProgress = (routeTime % bypassDuration) / bypassDuration
-        if (bypassProgress < 0.38) {
-          const progress = bypassProgress / 0.38
-          move(
-            group.current,
-            -0.3 + progress * (BYPASS_X + 0.3),
-            STATION_HEIGHTS[bypassIndex],
-            z * (1 - progress),
-          )
-        } else {
-          const progress = (bypassProgress - 0.38) / 0.62
-          move(
-            group.current,
-            BYPASS_X,
-            THREE.MathUtils.lerp(
-              STATION_HEIGHTS[bypassIndex],
-              STATION_HEIGHTS[bypassIndex + 1],
-              progress,
-            ),
-            0,
-          )
-        }
-        group.current.rotation.x += dt * 3.6
+    const routeTime = phase - 4.4
+    const stationBypassDuration = 1.45
+    const totalBypassTime = config.station * stationBypassDuration
+
+    // 2. Cascade through earlier stations: sweep through gauge -> rejected into bypass tube -> drop to next platter
+    if (routeTime < totalBypassTime) {
+      const stationIndex = Math.floor(routeTime / stationBypassDuration)
+      const localProgress = (routeTime % stationBypassDuration) / stationBypassDuration
+      const currentY = STATION_ITEM_Y[stationIndex]
+      const nextY = STATION_ITEM_Y[stationIndex + 1]
+
+      if (localProgress < 0.55) {
+        // Carried clockwise by the rotating platter through the station's gauge to the bypass drop port
+        const t = localProgress / 0.55
+        const angle = THREE.MathUtils.lerp(Math.PI * 1.18, -Math.PI * 0.68, t)
+        const radius = 0.78
+        move(group.current, Math.cos(angle) * radius, currentY, Math.sin(angle) * radius)
+        group.current.rotation.set(0, -angle + Math.PI / 2, 0)
+      } else if (localProgress < 0.88) {
+        // Drop vertically down the enclosed bypass tube to the next platter
+        const t = (localProgress - 0.55) / 0.33
+        move(
+          group.current,
+          BYPASS_PORT.x,
+          THREE.MathUtils.lerp(currentY, nextY, t),
+          BYPASS_PORT.z,
+        )
+        group.current.rotation.x += dt * 4.2
       } else {
-        const stationTime = routeTime - bypassTime
-        const stationStartX = config.station === 0 ? -0.3 : BYPASS_X
-        const approachDuration = 0.55
-        const gaugeDuration = 1.25
-        const chuteDuration = 2.6
-
-        if (stationTime < approachDuration) {
-          const progress = stationTime / approachDuration
-          move(group.current, THREE.MathUtils.lerp(stationStartX, -0.3, progress), targetY, 0)
-        } else if (stationTime < approachDuration + gaugeDuration) {
-          const progress = (stationTime - approachDuration) / gaugeDuration
-          move(
-            group.current,
-            -0.3 + progress * (config.chuteEntryX + 0.3),
-            targetY,
-            progress * config.binZ,
-          )
-          group.current.rotation.y += dt * 4.2
-        } else if (stationTime < approachDuration + gaugeDuration + chuteDuration) {
-          const progress = (stationTime - approachDuration - gaugeDuration) / chuteDuration
-          move(
-            group.current,
-            config.chuteEntryX + progress * (config.binX - config.chuteEntryX),
-            THREE.MathUtils.lerp(targetY, -0.25, progress),
-            config.binZ,
-          )
-          group.current.rotation.x += dt * 4.8
-        } else {
-          move(group.current, config.binX, -0.25, config.binZ)
-          group.current.rotation.y += dt * 7.2
-        }
+        // Curve along the inner guide wall from bypass exit to next station gauge entry
+        const t = (localProgress - 0.88) / 0.12
+        move(
+          group.current,
+          THREE.MathUtils.lerp(BYPASS_PORT.x, ENTRY_PORT.x, t),
+          nextY,
+          THREE.MathUtils.lerp(BYPASS_PORT.z, ENTRY_PORT.z, t),
+        )
       }
+      return
+    }
+
+    // 3. Target station: engage matching mechanical gauge -> deflect into chute -> land in bin slot
+    const stationTime = routeTime - totalBypassTime
+    const gaugeSweepDuration = 0.85
+    const apronDuration = 0.55
+    const chuteSlideDuration = 2.1
+
+    if (stationTime < gaugeSweepDuration) {
+      const t = stationTime / gaugeSweepDuration
+      const angle = THREE.MathUtils.lerp(Math.PI * 1.18, 0.12, t)
+      const radius = THREE.MathUtils.lerp(0.78, 0.62, t)
+      move(group.current, Math.cos(angle) * radius, targetY, Math.sin(angle) * radius)
+      group.current.rotation.set(0, -angle, 0)
+    } else if (stationTime < gaugeSweepDuration + apronDuration) {
+      const t = (stationTime - gaugeSweepDuration) / apronDuration
+      move(
+        group.current,
+        THREE.MathUtils.lerp(0.62, config.chuteEntryX, t),
+        targetY,
+        THREE.MathUtils.lerp(0.08, config.chuteZ, t),
+      )
+      group.current.rotation.y += dt * 4.0
+    } else if (stationTime < gaugeSweepDuration + apronDuration + chuteSlideDuration) {
+      const t = (stationTime - gaugeSweepDuration - apronDuration) / chuteSlideDuration
+      const slotX = config.binX + item.slot[0]
+      const slotZ = config.binZ + item.slot[1]
+      move(
+        group.current,
+        THREE.MathUtils.lerp(config.chuteEntryX, slotX, t),
+        THREE.MathUtils.lerp(targetY, -0.32, t),
+        THREE.MathUtils.lerp(config.chuteZ, slotZ, t),
+      )
+      group.current.rotation.z -= dt * 5.2
+      group.current.rotation.x += dt * 3.2
+    } else {
+      const slotX = config.binX + item.slot[0]
+      const slotZ = config.binZ + item.slot[1]
+      move(group.current, slotX, -0.32, slotZ)
+      group.current.rotation.set(0, item.id * 0.5, 0)
     }
   })
 
@@ -138,114 +261,191 @@ function MovingObject({ item }) {
   )
 }
 
+function FeedHopper() {
+  return (
+    <group position={[-6.05, 0.55, -0.45]}>
+      {/* Hopper basin */}
+      <mesh position={[0, 0.42, 0]} castShadow receiveShadow>
+        <cylinderGeometry args={[0.92, 0.52, 0.72, 6]} />
+        <meshStandardMaterial color="#1e293b" metalness={0.65} roughness={0.35} />
+      </mesh>
+      <mesh position={[0, 0.79, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.9, 0.04, 8, 6]} />
+        <meshStandardMaterial color="#38bdf8" emissive="#0284c7" emissiveIntensity={0.4} />
+      </mesh>
+      {/* Support frame legs */}
+      {[
+        [-0.55, -0.45],
+        [0.55, -0.45],
+        [-0.55, 0.45],
+        [0.55, 0.45],
+      ].map(([x, z]) => (
+        <mesh key={`${x}-${z}`} position={[x, -0.62, z]}>
+          <cylinderGeometry args={[0.06, 0.06, 1.45, 10]} />
+          <meshStandardMaterial color="#334155" metalness={0.7} />
+        </mesh>
+      ))}
+      {/* Mixed shapes waiting in the random-start hopper */}
+      <group position={[0, 0.48, 0]}>
+        {HOPPER_PILE.map((item, idx) => (
+          <group key={idx} position={item.pos} rotation={item.rot}>
+            <Shape type={item.type} color={item.color} />
+          </group>
+        ))}
+      </group>
+      <Html position={[0, 1.45, 0]} center transform distanceFactor={8} style={{ pointerEvents: 'none' }}>
+        <div className="w-36 rounded-lg border border-cyan-400/35 bg-slate-950/90 px-2 py-1 text-center font-mono text-[8px] tracking-wider text-cyan-200 shadow-lg">
+          <span className="block text-[7px] text-slate-400">RANDOM START</span>
+          MIXED INFEED HOPPER
+        </div>
+      </Html>
+    </group>
+  )
+}
+
 function MechanicalGauge({ type }) {
   if (type === 'sphere') {
+    // V-Groove twin rails + low cube/pyramid blocker gate
     return (
-      <group>
-        <mesh position={[0, 0.18, -0.42]} rotation={[-0.42, 0, 0]}>
-          <boxGeometry args={[1.45, 0.1, 0.09]} />
-          <meshStandardMaterial color="#0f172a" metalness={0.75} />
+      <group position={[0.45, 0, -0.25]}>
+        <mesh position={[0.15, 0.18, -0.28]} rotation={[0, -0.42, 0]}>
+          <boxGeometry args={[1.05, 0.11, 0.07]} />
+          <meshStandardMaterial color="#22c55e" emissive="#22c55e" emissiveIntensity={0.22} metalness={0.6} />
         </mesh>
-        <mesh position={[0, 0.18, 0.42]} rotation={[0.42, 0, 0]}>
-          <boxGeometry args={[1.45, 0.1, 0.09]} />
-          <meshStandardMaterial color="#0f172a" metalness={0.75} />
+        <mesh position={[0.15, 0.18, 0.16]} rotation={[0, -0.42, 0]}>
+          <boxGeometry args={[1.05, 0.11, 0.07]} />
+          <meshStandardMaterial color="#22c55e" emissive="#22c55e" emissiveIntensity={0.22} metalness={0.6} />
         </mesh>
-        <mesh position={[0.4, 0.21, 0]} rotation={[Math.PI / 2, 0, 0]}>
-          <cylinderGeometry args={[0.13, 0.13, 0.82, 20]} />
-          <meshStandardMaterial color="#22c55e" metalness={0.6} />
-        </mesh>
-        <mesh position={[0.4, 0.32, 0]}>
-          <sphereGeometry args={[0.17, 16, 16]} />
-          <meshStandardMaterial color="#86efac" emissive="#22c55e" emissiveIntensity={0.3} />
+        {/* Rolling sphere selector bridge */}
+        <mesh position={[0.1, 0.34, -0.06]} rotation={[Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[0.07, 0.07, 0.62, 16]} />
+          <meshStandardMaterial color="#86efac" metalness={0.75} />
         </mesh>
       </group>
     )
   }
   if (type === 'cube') {
+    // Elevated parallel feeler bar that catches tall flat-topped cubes while tapered pyramids pass underneath
     return (
-      <group>
+      <group position={[0.42, 0, 0]}>
         {[
-          [-0.45, -0.38],
-          [-0.45, 0.38],
-          [0.45, -0.38],
-          [0.45, 0.38],
+          [-0.25, -0.36],
+          [0.35, -0.36],
+          [-0.25, 0.36],
+          [0.35, 0.36],
         ].map(([x, z]) => (
-          <mesh key={`${x}-${z}`} position={[x, 0.25, z]}>
-            <cylinderGeometry args={[0.08, 0.08, 0.38, 12]} />
+          <mesh key={`${x}-${z}`} position={[x, 0.28, z]}>
+            <cylinderGeometry args={[0.055, 0.055, 0.42, 12]} />
             <meshStandardMaterial color="#e2e8f0" metalness={0.85} />
           </mesh>
         ))}
-        <mesh position={[0, 0.16, 0]}>
-          <boxGeometry args={[1.15, 0.08, 1.15]} />
-          <meshStandardMaterial color="#475569" metalness={0.7} />
-        </mesh>
-        <mesh position={[0.84, 0.35, 0]} rotation={[0, 0, -0.5]}>
-          <boxGeometry args={[0.65, 0.07, 0.09]} />
-          <meshStandardMaterial color="#ef4444" emissive="#ef4444" emissiveIntensity={0.22} />
+        {/* Upper feeler deflector bar at cube top height */}
+        <mesh position={[0.08, 0.42, 0]} rotation={[0, -0.38, 0]}>
+          <boxGeometry args={[0.92, 0.08, 0.12]} />
+          <meshStandardMaterial color="#ef4444" emissive="#ef4444" emissiveIntensity={0.28} metalness={0.6} />
         </mesh>
       </group>
     )
   }
   if (type === 'pyramid') {
+    // Angled Tri-Nest funnel rails that capture 4-sided pyramid bases and direct them to Station 03 chute
     return (
-      <group>
-        {[0, 1, 2].map((index) => {
-          const angle = Math.PI / 2 + index * ((Math.PI * 2) / 3)
-          return (
-            <mesh
-              key={index}
-              position={[Math.cos(angle) * 0.55, 0.2, Math.sin(angle) * 0.55]}
-              rotation={[0, -angle, 0]}
-            >
-              <boxGeometry args={[0.72, 0.1, 0.09]} />
-              <meshStandardMaterial color="#60a5fa" metalness={0.7} />
-            </mesh>
-          )
-        })}
-        <mesh position={[0, 0.18, 0]} rotation={[0, Math.PI / 4, 0]}>
-          <coneGeometry args={[0.28, 0.1, 3]} />
-          <meshStandardMaterial color="#1e3a8a" />
+      <group position={[0.42, 0, 0.25]}>
+        <mesh position={[0.05, 0.2, -0.22]} rotation={[0, 0.38, 0]}>
+          <boxGeometry args={[0.95, 0.12, 0.08]} />
+          <meshStandardMaterial color="#60a5fa" emissive="#3b82f6" emissiveIntensity={0.22} metalness={0.7} />
+        </mesh>
+        <mesh position={[0.05, 0.2, 0.22]} rotation={[0, 0.52, 0]}>
+          <boxGeometry args={[0.95, 0.12, 0.08]} />
+          <meshStandardMaterial color="#60a5fa" emissive="#3b82f6" emissiveIntensity={0.22} metalness={0.7} />
+        </mesh>
+        <mesh position={[-0.12, 0.17, 0]} rotation={[0, Math.PI / 4, 0]}>
+          <coneGeometry args={[0.22, 0.09, 4]} />
+          <meshStandardMaterial color="#1d4ed8" />
         </mesh>
       </group>
     )
   }
+  // Station 04: Unsorted sweep guide rail directing remaining items to the amber unsorted chute
   return (
-    <mesh position={[0, 0.18, 0]}>
-      <boxGeometry args={[1.7, 0.11, 1.15]} />
-      <meshStandardMaterial color="#f59e0b" emissive="#f59e0b" emissiveIntensity={0.12} />
-    </mesh>
+    <group position={[0.32, 0, 0.42]}>
+      <mesh position={[0, 0.2, 0]} rotation={[0, 0.65, 0]}>
+        <boxGeometry args={[1.25, 0.14, 0.09]} />
+        <meshStandardMaterial color="#f59e0b" emissive="#f59e0b" emissiveIntensity={0.25} metalness={0.6} />
+      </mesh>
+    </group>
   )
 }
 
 function Platter({ y, label, accepts, color, type }) {
-  const labelPosition = type === 'sphere' ? [-1.7, -0.72, 0] : [-1.7, 0.25, 0]
+  const rotorRef = useRef()
   const hasBypass = type !== 'return'
+  const labelPosition = [-1.85, 0.22, 0.35]
+
+  useSimulationFrame((_, dt) => {
+    if (rotorRef.current) {
+      rotorRef.current.rotation.y -= dt * 1.35
+    }
+  })
 
   return (
-    <group position={[-0.25, y, 0]}>
+    <group position={[0, y, 0]}>
+      {/* Stationary outer containment ring */}
       <mesh receiveShadow>
-        <cylinderGeometry args={[1.38, 1.38, 0.18, 64]} />
-        <meshStandardMaterial color="#334155" metalness={0.65} roughness={0.32} />
+        <cylinderGeometry args={[1.42, 1.42, 0.16, 64]} />
+        <meshStandardMaterial color="#1e293b" metalness={0.7} roughness={0.35} />
       </mesh>
-      <mesh position={[0, 0.11, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[1.28, 0.035, 8, 48]} />
+      <mesh position={[0, 0.095, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[1.36, 0.032, 8, 48]} />
         <meshBasicMaterial color={color} />
       </mesh>
+
+      {/* Rotating inner turntable disc with traction ribs */}
+      <group ref={rotorRef} position={[0, 0.02, 0]}>
+        <mesh receiveShadow>
+          <cylinderGeometry args={[1.18, 1.18, 0.15, 48]} />
+          <meshStandardMaterial color="#334155" metalness={0.62} roughness={0.32} />
+        </mesh>
+        {Array.from({ length: 8 }, (_, index) => {
+          const angle = (index * Math.PI) / 4
+          return (
+            <mesh key={index} position={[0, 0.082, 0]} rotation={[0, angle, 0]}>
+              <boxGeometry args={[2.15, 0.02, 0.035]} />
+              <meshStandardMaterial color="#64748b" metalness={0.8} />
+            </mesh>
+          )
+        })}
+      </group>
+
+      {/* Bypass drop port & vertical guide tube to the next platter down */}
       {hasBypass && (
-        <>
-          <mesh position={[-0.9, 0.105, 0]}>
-            <cylinderGeometry args={[0.24, 0.24, 0.025, 32]} />
+        <group position={[BYPASS_PORT.x, 0, BYPASS_PORT.z]}>
+          <mesh position={[0, 0.095, 0]}>
+            <cylinderGeometry args={[0.25, 0.25, 0.03, 32]} />
             <meshBasicMaterial color="#050a12" />
           </mesh>
-          <mesh position={[-0.9, 0.12, 0]} rotation={[Math.PI / 2, 0, 0]}>
+          <mesh position={[0, 0.105, 0]} rotation={[Math.PI / 2, 0, 0]}>
             <torusGeometry args={[0.27, 0.025, 8, 32]} />
             <meshBasicMaterial color="#f59e0b" />
           </mesh>
-        </>
+          {/* Translucent vertical drop tube connecting to the next station */}
+          <mesh position={[0, -0.88, 0]}>
+            <cylinderGeometry args={[0.24, 0.24, 1.62, 24, 1, true]} />
+            <meshStandardMaterial
+              color="#f59e0b"
+              transparent
+              opacity={0.18}
+              side={THREE.DoubleSide}
+              depthWrite={false}
+            />
+          </mesh>
+        </group>
       )}
+
       <MechanicalGauge type={type} />
+
       <Html position={labelPosition} center transform distanceFactor={8} style={{ pointerEvents: 'none' }}>
-        <div className="w-32 rounded-lg border border-white/15 bg-slate-950/85 px-2 py-1 text-center font-mono text-[9px] tracking-wider text-slate-200 shadow-xl">
+        <div className="w-34 rounded-lg border border-white/15 bg-slate-950/90 px-2 py-1 text-center font-mono text-[9px] tracking-wider text-slate-200 shadow-xl">
           <span className="block text-[8px] text-slate-400">{label}</span>
           <span style={{ color }}>{accepts}</span>
         </div>
@@ -254,31 +454,59 @@ function Platter({ y, label, accepts, color, type }) {
   )
 }
 
-function Chute({ y, color, binX, binZ, chuteEntryX }) {
-  const entryLength = chuteEntryX + 0.3
-  const dropLength = Math.hypot(binX - chuteEntryX, y + 0.25)
-  const dropAngle = -Math.atan2(y + 0.25, binX - chuteEntryX)
+function Chute({ platterY, color, binX, binZ, chuteEntryX, chuteZ }) {
+  const bedY = platterY - 0.22
+  const binRimY = -0.32
+  const apronDx = chuteEntryX - 0.68
+  const apronDz = chuteZ
+  const apronLength = Math.hypot(apronDx, apronDz)
+  const apronYaw = -Math.atan2(apronDz, apronDx)
+
+  const dx = binX - chuteEntryX
+  const dy = bedY - binRimY
+  const dz = binZ - chuteZ
+  const horizontalDist = Math.hypot(dx, dz)
+  const dropLength = Math.hypot(horizontalDist, dy)
+  const yaw = -Math.atan2(dz, dx)
+  const pitch = -Math.atan2(dy, horizontalDist)
 
   return (
-    <group position={[0, 0, binZ]}>
-      <mesh position={[(chuteEntryX - 0.3) / 2, y, 0]}>
-        <boxGeometry args={[entryLength, 0.13, 0.78]} />
-        <meshStandardMaterial color="#475569" metalness={0.65} roughness={0.35} />
-      </mesh>
-      <mesh position={[(chuteEntryX + binX) / 2, y / 2, 0]} rotation={[0, 0, dropAngle]}>
-        <boxGeometry args={[dropLength, 0.13, 0.78]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.2} metalness={0.45} />
-      </mesh>
-      {[-0.42, 0.42].map((zOffset) => (
-        <mesh
-          key={zOffset}
-          position={[(chuteEntryX + binX) / 2, y / 2 + 0.13, zOffset]}
-          rotation={[0, 0, dropAngle]}
-        >
-          <boxGeometry args={[dropLength, 0.08, 0.04]} />
-          <meshStandardMaterial color="#cbd5e1" metalness={0.8} />
+    <group>
+      {/* Horizontal transition apron from platter rim to sloped chute */}
+      <group
+        position={[(0.68 + chuteEntryX) / 2, bedY, chuteZ / 2]}
+        rotation={[0, apronYaw, 0]}
+      >
+        <mesh receiveShadow>
+          <boxGeometry args={[apronLength + 0.18, 0.1, 0.72]} />
+          <meshStandardMaterial color="#475569" metalness={0.65} roughness={0.35} />
         </mesh>
-      ))}
+      </group>
+
+      {/* Sloped chute with properly aligned perpendicular side guardrails */}
+      <group
+        position={[(chuteEntryX + binX) / 2, (bedY + binRimY) / 2, (chuteZ + binZ) / 2]}
+        rotation={[0, yaw, 0]}
+      >
+        <group rotation={[0, 0, pitch]}>
+          <mesh receiveShadow>
+            <boxGeometry args={[dropLength, 0.11, 0.74]} />
+            <meshStandardMaterial
+              color={color}
+              emissive={color}
+              emissiveIntensity={0.2}
+              metalness={0.45}
+              roughness={0.35}
+            />
+          </mesh>
+          {[-0.39, 0.39].map((zOffset) => (
+            <mesh key={zOffset} position={[0, 0.1, zOffset]}>
+              <boxGeometry args={[dropLength, 0.11, 0.045]} />
+              <meshStandardMaterial color="#cbd5e1" metalness={0.8} roughness={0.25} />
+            </mesh>
+          ))}
+        </group>
+      </group>
     </group>
   )
 }
@@ -287,17 +515,17 @@ function CollectionBin({ type }) {
   const { color, label, binX, binZ, icon } = TYPE_CONFIG[type]
   return (
     <group position={[binX, -0.75, binZ]}>
-      <mesh>
-        <boxGeometry args={[1.12, 0.9, 1.12]} />
+      <mesh receiveShadow>
+        <boxGeometry args={[1.18, 0.86, 1.18]} />
         <meshStandardMaterial color="#182235" roughness={0.6} />
       </mesh>
-      <mesh position={[0, 0.47, 0]}>
-        <boxGeometry args={[0.97, 0.07, 0.97]} />
+      <mesh position={[0, 0.45, 0]}>
+        <boxGeometry args={[1.04, 0.07, 1.04]} />
         <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.32} />
       </mesh>
-      <Html position={[0, -0.72, 0.82]} center transform distanceFactor={8} style={{ pointerEvents: 'none' }}>
+      <Html position={[0, -0.7, 0.84]} center transform distanceFactor={8} style={{ pointerEvents: 'none' }}>
         <div
-          className="w-20 rounded-md border px-1.5 py-1 text-center font-mono text-[8px] font-bold tracking-wider"
+          className="w-24 rounded-md border px-1.5 py-1 text-center font-mono text-[8px] font-bold tracking-wider"
           style={{ background: `${color}22`, borderColor: color, color }}
         >
           {icon} {label}
@@ -307,81 +535,71 @@ function CollectionBin({ type }) {
   )
 }
 
-function UnsortedCollector() {
-  return (
-    <group position={[-1.35, -0.75, -1.55]}>
-      <mesh>
-        <boxGeometry args={[1.35, 0.9, 1.12]} />
-        <meshStandardMaterial color="#1f2937" roughness={0.6} />
-      </mesh>
-      <mesh position={[0, 0.47, 0]}>
-        <boxGeometry args={[1.18, 0.07, 0.95]} />
-        <meshStandardMaterial color="#f59e0b" emissive="#f59e0b" emissiveIntensity={0.35} />
-      </mesh>
-      <Html position={[0, -0.72, 0]} center transform distanceFactor={8} style={{ pointerEvents: 'none' }}>
-        <div className="w-28 rounded-md border border-amber-400 bg-amber-400/10 px-2 py-1 text-center font-mono text-[9px] font-bold tracking-widest text-amber-300">
-          ↻ UNSORTED
-        </div>
-      </Html>
-    </group>
-  )
-}
+export function MechanicalSorterScene({ activePreset = 'overview' }) {
+  const spindleRef = useRef()
 
-export function MechanicalSorterScene() {
+  useSimulationFrame((_, dt) => {
+    if (spindleRef.current) {
+      spindleRef.current.rotation.y -= dt * 1.35
+    }
+  })
+
   return (
     <>
-      <PerspectiveCamera makeDefault position={[10, 7.2, 13]} fov={38} />
+      <PerspectiveCamera makeDefault position={[10.4, 7.2, 13.2]} fov={38} />
       <color attach="background" args={['#070d18']} />
-      <fog attach="fog" args={['#070d18', 13, 28]} />
-      <ambientLight intensity={0.45} />
+      <fog attach="fog" args={['#070d18', 14, 30]} />
+      <ambientLight intensity={0.48} />
       <directionalLight castShadow position={[4, 10, 7]} intensity={2.3} shadow-mapSize={[2048, 2048]} />
       <pointLight position={[-5, 2, 4]} color="#38bdf8" intensity={18} distance={11} />
       <pointLight position={[4, 5, 1]} color="#a855f7" intensity={13} distance={9} />
       <group>
-        <mesh position={[-0.25, 2.3, 0]}>
-          <cylinderGeometry args={[0.3, 0.3, 7.1, 24]} />
-          <meshStandardMaterial color="#172033" metalness={0.75} roughness={0.3} />
+        {/* Central rotating drive shaft */}
+        <mesh ref={spindleRef} position={[0, 2.35, 0]}>
+          <cylinderGeometry args={[0.26, 0.26, 7.2, 16]} />
+          <meshStandardMaterial color="#1e293b" metalness={0.8} roughness={0.28} />
         </mesh>
-        <mesh position={[-0.25, -1.3, 0]}>
-          <cylinderGeometry args={[2.1, 2.1, 0.35, 64]} />
+        {/* Heavy machine base */}
+        <mesh position={[0, -1.3, 0]} receiveShadow>
+          <cylinderGeometry args={[2.1, 2.25, 0.35, 64]} />
           <meshStandardMaterial color="#202d42" metalness={0.5} />
         </mesh>
-        <Conveyor position={[-3.2, 2.88, 0]} length={7.7} rotation={[0, 0, 0.72]} />
+
+        {/* Random-start feed hopper & inclined conveyor (offset to z = -0.45 so bypass tubes are 100% clear) */}
+        <FeedHopper />
+        <Conveyor position={[-3.55, 2.85, -0.45]} length={6.6} rotation={[0, 0, 0.72]} />
+
+        {/* 4 Rotary Cascade Platters */}
         <Platter y={5.0} label="STATION 01" accepts="V-GROOVE · SPHERES" color="#22c55e" type="sphere" />
-        <Platter y={3.25} label="STATION 02" accepts="LEVEL FEELERS · CUBES" color="#ef4444" type="cube" />
+        <Platter y={3.25} label="STATION 02" accepts="FEELER GATE · CUBES" color="#ef4444" type="cube" />
         <Platter y={1.5} label="STATION 03" accepts="TRI-NEST · PYRAMIDS" color="#3b82f6" type="pyramid" />
         <Platter y={-0.25} label="STATION 04" accepts="UNSORTED CATCH TRAY" color="#f59e0b" type="return" />
-        <Chute
-          y={5.4}
-          color="#22c55e"
-          binX={TYPE_CONFIG.sphere.binX}
-          binZ={TYPE_CONFIG.sphere.binZ}
-          chuteEntryX={TYPE_CONFIG.sphere.chuteEntryX}
-        />
-        <Chute
-          y={3.65}
-          color="#ef4444"
-          binX={TYPE_CONFIG.cube.binX}
-          binZ={TYPE_CONFIG.cube.binZ}
-          chuteEntryX={TYPE_CONFIG.cube.chuteEntryX}
-        />
-        <Chute
-          y={1.9}
-          color="#3b82f6"
-          binX={TYPE_CONFIG.pyramid.binX}
-          binZ={TYPE_CONFIG.pyramid.binZ}
-          chuteEntryX={TYPE_CONFIG.pyramid.chuteEntryX}
-        />
-        <CollectionBin type="cube" />
+
+        {/* 4 Forward-Sloping Exit Chutes */}
+        {Object.entries(TYPE_CONFIG).map(([key, cfg]) => (
+          <Chute
+            key={key}
+            platterY={cfg.platterY}
+            color={cfg.color}
+            binX={cfg.binX}
+            binZ={cfg.binZ}
+            chuteEntryX={cfg.chuteEntryX}
+            chuteZ={cfg.chuteZ}
+          />
+        ))}
+
+        {/* 4 Collection Bins */}
         <CollectionBin type="sphere" />
+        <CollectionBin type="cube" />
         <CollectionBin type="pyramid" />
-        <UnsortedCollector />
+        <CollectionBin type="unsorted" />
+
         {OBJECTS.map((item) => (
           <MovingObject key={item.id} item={item} />
         ))}
       </group>
-      <gridHelper args={[30, 30, '#1e3a5f', '#111c2e']} position={[0, -1.48, 0]} />
-      <OrbitControls target={[-0.4, 2.3, 0]} minDistance={7} maxDistance={22} maxPolarAngle={Math.PI / 2.02} />
+      <gridHelper args={[32, 32, '#1e3a5f', '#111c2e']} position={[0, -1.48, 0]} />
+      <CameraRig activePreset={activePreset} />
     </>
   )
 }
