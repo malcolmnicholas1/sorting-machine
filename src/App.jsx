@@ -16,6 +16,15 @@ const MECHANICAL_CAMERA_PRESETS = [
   { id: 'bins', label: 'SORTED BINS' },
 ]
 
+const VISION_CAMERA_PRESETS = [
+  { id: 'overview', label: 'OVERVIEW' },
+  { id: 'hopper', label: 'HOPPER' },
+  { id: 'scanner', label: 'VISION GANTRY' },
+  { id: 'pick', label: 'PICK NEST' },
+  { id: 'robot', label: 'ROBOT ARM' },
+  { id: 'bins', label: 'SORTED BINS' },
+]
+
 const PROTOTYPE_CARDS = [
   {
     id: 'design-01a',
@@ -70,13 +79,13 @@ const CHALLENGE_PILLARS = [
   },
 ]
 
-function CameraPresetBar({ activePreset, onSelect }) {
+function CameraPresetBar({ presets = MECHANICAL_CAMERA_PRESETS, activePreset, onSelect }) {
   return (
     <>
       <span className="mr-1 hidden font-mono text-[9px] tracking-widest text-slate-400 sm:inline">
         FOCUS:
       </span>
-      {MECHANICAL_CAMERA_PRESETS.map((preset) => {
+      {presets.map((preset) => {
         const active = activePreset === preset.id
         return (
           <button
@@ -101,6 +110,7 @@ function App() {
   const [expandedPrototype, setExpandedPrototype] = useState(null)
   const [paddleCamera, setPaddleCamera] = useState('overview')
   const [turntableCamera, setTurntableCamera] = useState('overview')
+  const [visionCamera, setVisionCamera] = useState('overview')
 
   useEffect(() => {
     if (!expandedPrototype) return undefined
@@ -317,23 +327,40 @@ function App() {
           id="design-02"
           eyebrow="TEAM TIME BROS · DESIGN 02"
           title="Vision-Guided Pick & Place"
-          statusLabel="CAMERA + ROBOT ARM"
+          statusLabel="LIVE CV + 6-AXIS ARM"
+          secondaryStatus="4 TARGET BINS"
           accent="cyan"
           bgClass="bg-[#070d18]"
+          heightClass="mt-12 h-[580px] lg:h-[680px]"
           expanded={expandedPrototype === 'vision'}
           anyExpanded={anyExpanded}
           onExpand={() => setExpandedPrototype('vision')}
           onClose={() => setExpandedPrototype(null)}
+          subHeader={
+            <CameraPresetBar
+              presets={VISION_CAMERA_PRESETS}
+              activePreset={visionCamera}
+              onSelect={setVisionCamera}
+            />
+          }
           leftHud={
             <>
-              <span className="text-cyan-300">PROCESS</span>
+              <span className="text-cyan-300">PIPELINE</span>
               <br />
-              DETECT → CLASSIFY → PICK → PLACE
+              HOPPER → CV RETICLE SCAN → PHOTO-EYE STOP → ROBOT PLACE
             </>
           }
-          rightHud="DRAG TO ORBIT · SCROLL TO ZOOM"
+          rightHud={
+            <>
+              <span className="text-white">VISION &amp; ROBOTICS</span>
+              <br />
+              3D BOUNDING BOX + CONFIDENCE READOUT
+              <br />
+              SWIVEL TURRET ARM → 4 SORTED BINS
+            </>
+          }
         >
-          <VisionSorterScene />
+          <VisionSorterScene activePreset={visionCamera} />
         </PrototypeStage>
 
         <PrototypeStage
