@@ -12,15 +12,24 @@ const MECHANICAL_CAMERA_PRESETS = [
   { id: 'st01', label: 'ST 01 · SPHERES' },
   { id: 'st02', label: 'ST 02 · CUBES' },
   { id: 'st03', label: 'ST 03 · PYRAMIDS' },
+  { id: 'bypass', label: 'BYPASS MECHANISM' },
   { id: 'bins', label: 'SORTED BINS' },
 ]
 
 const PROTOTYPE_CARDS = [
   {
-    id: 'design-01',
-    badge: '01 · LIVE MODEL',
-    title: 'Mechanical Shape Sorter',
-    description: 'A single incline conveyor and three passive shape-gauge stations.',
+    id: 'design-01a',
+    badge: '01A · OPTION 1 MODEL',
+    title: 'Stationary Deck + Sweep Paddles',
+    description: 'Fixed platter floors with interior drop-through holes and rotating 4-arm sweep paddles.',
+    style: 'border-cyan-300/35 bg-cyan-300/10 hover:bg-cyan-300/15',
+    badgeStyle: 'text-cyan-200',
+  },
+  {
+    id: 'design-01b',
+    badge: '01B · OPTION 2 MODEL',
+    title: 'Solid Turntable + Rim Funnel',
+    description: 'Hole-free spinning discs with stationary wiper plows feeding external perimeter drop funnels.',
     style: 'border-cyan-300/35 bg-cyan-300/10 hover:bg-cyan-300/15',
     badgeStyle: 'text-cyan-200',
   },
@@ -61,9 +70,37 @@ const CHALLENGE_PILLARS = [
   },
 ]
 
+function CameraPresetBar({ activePreset, onSelect }) {
+  return (
+    <>
+      <span className="mr-1 hidden font-mono text-[9px] tracking-widest text-slate-400 sm:inline">
+        FOCUS:
+      </span>
+      {MECHANICAL_CAMERA_PRESETS.map((preset) => {
+        const active = activePreset === preset.id
+        return (
+          <button
+            key={preset.id}
+            type="button"
+            onClick={() => onSelect(preset.id)}
+            className={`rounded-md border px-2 py-1 font-mono text-[9px] tracking-wider transition ${
+              active
+                ? 'border-cyan-300 bg-cyan-300/20 text-cyan-100'
+                : 'border-white/10 bg-slate-950/65 text-slate-300 hover:border-cyan-300/45 hover:text-cyan-200'
+            }`}
+          >
+            {preset.label}
+          </button>
+        )
+      })}
+    </>
+  )
+}
+
 function App() {
   const [expandedPrototype, setExpandedPrototype] = useState(null)
-  const [mechanicalCamera, setMechanicalCamera] = useState('overview')
+  const [paddleCamera, setPaddleCamera] = useState('overview')
+  const [turntableCamera, setTurntableCamera] = useState('overview')
 
   useEffect(() => {
     if (!expandedPrototype) return undefined
@@ -194,7 +231,7 @@ function App() {
           </p>
         </div>
 
-        <div className="mb-6 grid gap-4 md:grid-cols-3">
+        <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {PROTOTYPE_CARDS.map((card) => (
             <a
               key={card.id}
@@ -209,60 +246,71 @@ function App() {
         </div>
 
         <PrototypeStage
-          id="design-01"
-          eyebrow="TEAM TIME BROS · DESIGN 01"
-          title="Mechanical Shape Sorter"
+          id="design-01a"
+          eyebrow="TEAM TIME BROS · DESIGN 01A (OPTION 1)"
+          title="Mechanical Sorter · Stationary Deck + Rotating Sweep Paddles"
           statusLabel="SIMULATION ACTIVE"
-          secondaryStatus="4 ROTARY CASCADE STATIONS"
+          secondaryStatus="FIXED DECK · INTERIOR DROP HOLE"
           accent="cyan"
           bgClass="bg-[#070d18]"
           heightClass="h-[580px] lg:h-[700px]"
-          expanded={expandedPrototype === 'mechanical'}
+          expanded={expandedPrototype === 'mechanical-paddle'}
           anyExpanded={anyExpanded}
-          onExpand={() => setExpandedPrototype('mechanical')}
+          onExpand={() => setExpandedPrototype('mechanical-paddle')}
           onClose={() => setExpandedPrototype(null)}
-          subHeader={
-            <>
-              <span className="mr-1 hidden font-mono text-[9px] tracking-widest text-slate-400 sm:inline">
-                FOCUS:
-              </span>
-              {MECHANICAL_CAMERA_PRESETS.map((preset) => {
-                const active = mechanicalCamera === preset.id
-                return (
-                  <button
-                    key={preset.id}
-                    type="button"
-                    onClick={() => setMechanicalCamera(preset.id)}
-                    className={`rounded-md border px-2 py-1 font-mono text-[9px] tracking-wider transition ${
-                      active
-                        ? 'border-cyan-300 bg-cyan-300/20 text-cyan-100'
-                        : 'border-white/10 bg-slate-950/65 text-slate-300 hover:border-cyan-300/45 hover:text-cyan-200'
-                    }`}
-                  >
-                    {preset.label}
-                  </button>
-                )
-              })}
-            </>
-          }
+          subHeader={<CameraPresetBar activePreset={paddleCamera} onSelect={setPaddleCamera} />}
           leftHud={
             <>
-              <span className="text-cyan-300">CONTROLS</span>
+              <span className="text-cyan-300">OPTION 1 MECHANISM</span>
               <br />
-              DRAG TO ORBIT · SCROLL TO ZOOM · CLICK STATION PILLS TO FOCUS
+              STATIONARY FLOOR DECK + ROTATING 4-ARM PADDLE SPIDER
             </>
           }
           rightHud={
             <>
-              <span className="text-white">ROTARY CASCADE GAUGES</span>
+              <span className="text-white">BYPASS PATH</span>
               <br />
-              V-GROOVE → FEELER GATE → TRI-NEST
+              FIXED INTERIOR HOLE IN STATIONARY DECK
               <br />
-              UNSORTED → AMBER COLLECTOR
+              UNMATCHED ITEMS SWEPT OVER DROP TUBE
             </>
           }
         >
-          <MechanicalSorterScene activePreset={mechanicalCamera} />
+          <MechanicalSorterScene activePreset={paddleCamera} variant="paddle" />
+        </PrototypeStage>
+
+        <PrototypeStage
+          id="design-01b"
+          eyebrow="TEAM TIME BROS · DESIGN 01B (OPTION 2)"
+          title="Mechanical Sorter · Solid Turntable + External Rim Funnel"
+          statusLabel="SIMULATION ACTIVE"
+          secondaryStatus="SOLID DISC · WIPER PLOW + RIM FUNNEL"
+          accent="cyan"
+          bgClass="bg-[#070d18]"
+          heightClass="mt-12 h-[580px] lg:h-[700px]"
+          expanded={expandedPrototype === 'mechanical-turntable'}
+          anyExpanded={anyExpanded}
+          onExpand={() => setExpandedPrototype('mechanical-turntable')}
+          onClose={() => setExpandedPrototype(null)}
+          subHeader={<CameraPresetBar activePreset={turntableCamera} onSelect={setTurntableCamera} />}
+          leftHud={
+            <>
+              <span className="text-cyan-300">OPTION 2 MECHANISM</span>
+              <br />
+              SOLID SPINNING TURNTABLE (NO HOLES) + ANGLED WIPER PLOW
+            </>
+          }
+          rightHud={
+            <>
+              <span className="text-white">BYPASS PATH</span>
+              <br />
+              PLOW PUSHES ITEMS OFF OUTER EDGE
+              <br />
+              EXTERNAL DROP FUNNEL FEEDS NEXT LEVEL
+            </>
+          }
+        >
+          <MechanicalSorterScene activePreset={turntableCamera} variant="turntable" />
         </PrototypeStage>
 
         <PrototypeStage

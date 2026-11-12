@@ -8,9 +8,10 @@ import { useSimulationFrame } from '../components/useSimulationFrame.js'
 const CAMERA_PRESETS = {
   overview: { position: [10.4, 7.2, 13.2], target: [0.3, 2.3, 0.2] },
   hopper: { position: [-3.8, 3.2, 5.6], target: [-5.6, 1.1, -0.45] },
-  st01: { position: [3.2, 6.9, 4.4], target: [0.4, 5.15, -0.3] },
-  st02: { position: [3.2, 5.1, 4.4], target: [0.4, 3.4, 0] },
-  st03: { position: [3.2, 3.4, 4.4], target: [0.4, 1.65, 0.3] },
+  st01: { position: [3.2, 6.9, 4.4], target: [0.2, 5.15, 0.1] },
+  st02: { position: [3.2, 5.1, 4.4], target: [0.2, 3.4, 0.2] },
+  st03: { position: [3.2, 3.4, 4.4], target: [0.2, 1.65, 0.3] },
+  bypass: { position: [-3.6, 5.2, 5.8], target: [-0.65, 3.2, 0.95] },
   bins: { position: [8.4, 3.8, 6.2], target: [4.2, -0.2, 0.4] },
 }
 
@@ -62,7 +63,10 @@ const TYPE_CONFIG = {
 }
 
 const STATION_ITEM_Y = [5.34, 3.59, 1.84, 0.09]
-const BYPASS_PORT = { x: -0.58, z: 0.72 }
+// Option 1: Fixed interior drop hole cut into the stationary deck
+const INTERIOR_BYPASS_PORT = { x: -0.58, z: 0.72 }
+// Option 2: External rim drop funnel mounted outside the solid spinning turntable (r = 1.58 > 1.38 disc)
+const EXTERNAL_FUNNEL_PORT = { x: -0.82, z: 1.35 }
 const ENTRY_PORT = { x: -0.68, z: -0.45 }
 
 const BIN_SLOTS = [
@@ -142,16 +146,17 @@ function CameraRig({ activePreset }) {
     <OrbitControls
       ref={controlsRef}
       target={[0.3, 2.3, 0.2]}
-      minDistance={4.5}
+      minDistance={4.2}
       maxDistance={23}
       maxPolarAngle={Math.PI / 2.02}
     />
   )
 }
 
-function MovingObject({ item }) {
+function MovingObject({ item, variant }) {
   const group = useRef()
   const config = TYPE_CONFIG[item.type]
+  const isTurntable = variant === 'turntable'
 
   useSimulationFrame((elapsed, dt) => {
     const cycleDuration = 18.4
@@ -176,39 +181,79 @@ function MovingObject({ item }) {
     const stationBypassDuration = 1.45
     const totalBypassTime = config.station * stationBypassDuration
 
-    // 2. Cascade through earlier stations: sweep through gauge -> rejected into bypass tube -> drop to next platter
+    // 2. Cascade through earlier stations
     if (routeTime < totalBypassTime) {
       const stationIndex = Math.floor(routeTime / stationBypassDuration)
       const localProgress = (routeTime % stationBypassDuration) / stationBypassDuration
       const currentY = STATION_ITEM_Y[stationIndex]
       const nextY = STATION_ITEM_Y[stationIndex + 1]
 
-      if (localProgress < 0.55) {
-        // Carried clockwise by the rotating platter through the station's gauge to the bypass drop port
-        const t = localProgress / 0.55
-        const angle = THREE.MathUtils.lerp(Math.PI * 1.18, -Math.PI * 0.68, t)
-        const radius = 0.78
-        move(group.current, Math.cos(angle) * radius, currentY, Math.sin(angle) * radius)
-        group.current.rotation.set(0, -angle + Math.PI / 2, 0)
-      } else if (localProgress < 0.88) {
-        // Drop vertically down the enclosed bypass tube to the next platter
-        const t = (localProgress - 0.55) / 0.33
-        move(
-          group.current,
-          BYPASS_PORT.x,
-          THREE.MathUtils.lerp(currentY, nextY, t),
-          BYPASS_PORT.z,
-        )
-        group.current.rotation.x += dt * 4.2
+      if (!isTurntable) {
+        // OPTION 1 (Paddle): Swept by rotating paddle over stationary deck -> drops through fixed interior hole
+        if (localProgress < 0.55) {
+          const t = localProgress / 0.55
+          const angle = THREE.MathUtils.lerp(Math.PI * 1.18, -Math.PI * 0.68, t)
+          const radius = 0.78
+          move(group.current, Math.cos(angle) * radius, currentY, Math.sin(angle) * radius)
+          group.current.rotation.set(0, -angle + Math.PI / 2, 0)
+        } else if (localProgress < 0.88) {
+          const t = (localProgress - 0.55) / 0.33
+          move(
+            group.current,
+            INTERIOR_BYPASS_PORT.x,
+            THREE.MathUtils.lerp(currentY, nextY, t),
+            INTERIOR_BYPASS_PORT.z,
+          )
+          group.current.rotation.x += dt * 4.2
+        } else {
+          const t = (localProgress - 0.88) / 0.12
+          move(
+            group.current,
+            THREE.MathUtils.lerp(INTERIOR_BYPASS_PORT.x, ENTRY_PORT.x, t),
+            nextY,
+            THREE.MathUtils.lerp(INTERIOR_BYPASS_PORT.z, ENTRY_PORT.z, t),
+          )
+        }
       } else {
-        // Curve along the inner guide wall from bypass exit to next station gauge entry
-        const t = (localProgress - 0.88) / 0.12
-        move(
-          group.current,
-          THREE.MathUtils.lerp(BYPASS_PORT.x, ENTRY_PORT.x, t),
-          nextY,
-          THREE.MathUtils.lerp(BYPASS_PORT.z, ENTRY_PORT.z, t),
-        )
+        // OPTION 2 (Turntable): Carried on solid spinning disc -> hits angled wiper plow -> pushed off outer rim into external funnel
+        if (localProgress < 0.42) {
+          const t = localProgress / 0.42
+          const angle = THREE.MathUtils.lerp(Math.PI * 1.18, -Math.PI * 0.38, t)
+          const radius = 0.82
+          move(group.current, Math.cos(angle) * radius, currentY, Math.sin(angle) * radius)
+          group.current.rotation.set(0, -angle + Math.PI / 2, 0)
+        } else if (localProgress < 0.6) {
+          // Deflected outward along stationary wiper plow bar off the disc edge into external funnel
+          const t = (localProgress - 0.42) / 0.18
+          const startX = Math.cos(-Math.PI * 0.38) * 0.82
+          const startZ = Math.sin(-Math.PI * 0.38) * 0.82
+          move(
+            group.current,
+            THREE.MathUtils.lerp(startX, EXTERNAL_FUNNEL_PORT.x, t),
+            currentY - t * 0.08,
+            THREE.MathUtils.lerp(startZ, EXTERNAL_FUNNEL_PORT.z, t),
+          )
+          group.current.rotation.y += dt * 4.5
+        } else if (localProgress < 0.86) {
+          // Drops straight down external funnel tube outside the platter circumference
+          const t = (localProgress - 0.6) / 0.26
+          move(
+            group.current,
+            EXTERNAL_FUNNEL_PORT.x,
+            THREE.MathUtils.lerp(currentY - 0.08, nextY + 0.18, t),
+            EXTERNAL_FUNNEL_PORT.z,
+          )
+          group.current.rotation.x += dt * 4.8
+        } else {
+          // Slides down the angled return chute from external tube back onto next solid turntable
+          const t = (localProgress - 0.86) / 0.14
+          move(
+            group.current,
+            THREE.MathUtils.lerp(EXTERNAL_FUNNEL_PORT.x, ENTRY_PORT.x, t),
+            THREE.MathUtils.lerp(nextY + 0.18, nextY, t),
+            THREE.MathUtils.lerp(EXTERNAL_FUNNEL_PORT.z, ENTRY_PORT.z, t),
+          )
+        }
       }
       return
     }
@@ -264,7 +309,6 @@ function MovingObject({ item }) {
 function FeedHopper() {
   return (
     <group position={[-6.05, 0.55, -0.45]}>
-      {/* Hopper basin */}
       <mesh position={[0, 0.42, 0]} castShadow receiveShadow>
         <cylinderGeometry args={[0.92, 0.52, 0.72, 6]} />
         <meshStandardMaterial color="#1e293b" metalness={0.65} roughness={0.35} />
@@ -273,7 +317,6 @@ function FeedHopper() {
         <torusGeometry args={[0.9, 0.04, 8, 6]} />
         <meshStandardMaterial color="#38bdf8" emissive="#0284c7" emissiveIntensity={0.4} />
       </mesh>
-      {/* Support frame legs */}
       {[
         [-0.55, -0.45],
         [0.55, -0.45],
@@ -285,7 +328,6 @@ function FeedHopper() {
           <meshStandardMaterial color="#334155" metalness={0.7} />
         </mesh>
       ))}
-      {/* Mixed shapes waiting in the random-start hopper */}
       <group position={[0, 0.48, 0]}>
         {HOPPER_PILE.map((item, idx) => (
           <group key={idx} position={item.pos} rotation={item.rot}>
@@ -305,7 +347,6 @@ function FeedHopper() {
 
 function MechanicalGauge({ type }) {
   if (type === 'sphere') {
-    // V-Groove twin rails + low cube/pyramid blocker gate
     return (
       <group position={[0.45, 0, -0.25]}>
         <mesh position={[0.15, 0.18, -0.28]} rotation={[0, -0.42, 0]}>
@@ -316,7 +357,6 @@ function MechanicalGauge({ type }) {
           <boxGeometry args={[1.05, 0.11, 0.07]} />
           <meshStandardMaterial color="#22c55e" emissive="#22c55e" emissiveIntensity={0.22} metalness={0.6} />
         </mesh>
-        {/* Rolling sphere selector bridge */}
         <mesh position={[0.1, 0.34, -0.06]} rotation={[Math.PI / 2, 0, 0]}>
           <cylinderGeometry args={[0.07, 0.07, 0.62, 16]} />
           <meshStandardMaterial color="#86efac" metalness={0.75} />
@@ -325,7 +365,6 @@ function MechanicalGauge({ type }) {
     )
   }
   if (type === 'cube') {
-    // Elevated parallel feeler bar that catches tall flat-topped cubes while tapered pyramids pass underneath
     return (
       <group position={[0.42, 0, 0]}>
         {[
@@ -339,7 +378,6 @@ function MechanicalGauge({ type }) {
             <meshStandardMaterial color="#e2e8f0" metalness={0.85} />
           </mesh>
         ))}
-        {/* Upper feeler deflector bar at cube top height */}
         <mesh position={[0.08, 0.42, 0]} rotation={[0, -0.38, 0]}>
           <boxGeometry args={[0.92, 0.08, 0.12]} />
           <meshStandardMaterial color="#ef4444" emissive="#ef4444" emissiveIntensity={0.28} metalness={0.6} />
@@ -348,7 +386,6 @@ function MechanicalGauge({ type }) {
     )
   }
   if (type === 'pyramid') {
-    // Angled Tri-Nest funnel rails that capture 4-sided pyramid bases and direct them to Station 03 chute
     return (
       <group position={[0.42, 0, 0.25]}>
         <mesh position={[0.05, 0.2, -0.22]} rotation={[0, 0.38, 0]}>
@@ -366,7 +403,6 @@ function MechanicalGauge({ type }) {
       </group>
     )
   }
-  // Station 04: Unsorted sweep guide rail directing remaining items to the amber unsorted chute
   return (
     <group position={[0.32, 0, 0.42]}>
       <mesh position={[0, 0.2, 0]} rotation={[0, 0.65, 0]}>
@@ -377,64 +413,80 @@ function MechanicalGauge({ type }) {
   )
 }
 
-function Platter({ y, label, accepts, color, type }) {
-  const rotorRef = useRef()
+/**
+ * OPTION 1 PLATTER:
+ * Stationary floor deck with a fixed interior drop-through hole + rotating 4-blade sweep paddle spider on the central shaft.
+ */
+function StationaryPaddlePlatter({ y, label, accepts, color, type }) {
+  const paddleRef = useRef()
   const hasBypass = type !== 'return'
   const labelPosition = [-1.85, 0.22, 0.35]
 
   useSimulationFrame((_, dt) => {
-    if (rotorRef.current) {
-      rotorRef.current.rotation.y -= dt * 1.35
+    if (paddleRef.current) {
+      paddleRef.current.rotation.y -= dt * 1.45
     }
   })
 
   return (
     <group position={[0, y, 0]}>
-      {/* Stationary outer containment ring */}
+      {/* 100% Stationary Platter Floor Deck bolted to outer support columns */}
       <mesh receiveShadow>
         <cylinderGeometry args={[1.42, 1.42, 0.16, 64]} />
-        <meshStandardMaterial color="#1e293b" metalness={0.7} roughness={0.35} />
+        <meshStandardMaterial color="#1e293b" metalness={0.68} roughness={0.36} />
+      </mesh>
+      {/* Stationary circular track surface */}
+      <mesh position={[0, 0.085, 0]} receiveShadow>
+        <cylinderGeometry args={[1.22, 1.22, 0.02, 48]} />
+        <meshStandardMaterial color="#273549" metalness={0.5} roughness={0.45} />
       </mesh>
       <mesh position={[0, 0.095, 0]} rotation={[Math.PI / 2, 0, 0]}>
         <torusGeometry args={[1.36, 0.032, 8, 48]} />
         <meshBasicMaterial color={color} />
       </mesh>
 
-      {/* Rotating inner turntable disc with traction ribs */}
-      <group ref={rotorRef} position={[0, 0.02, 0]}>
-        <mesh receiveShadow>
-          <cylinderGeometry args={[1.18, 1.18, 0.15, 48]} />
-          <meshStandardMaterial color="#334155" metalness={0.62} roughness={0.32} />
+      {/* Rotating 4-Arm Sweep Paddle Spider mounted to the spinning central shaft */}
+      <group ref={paddleRef} position={[0, 0.22, 0]}>
+        <mesh castShadow>
+          <cylinderGeometry args={[0.36, 0.38, 0.22, 24]} />
+          <meshStandardMaterial color="#0284c7" metalness={0.75} roughness={0.25} />
         </mesh>
-        {Array.from({ length: 8 }, (_, index) => {
-          const angle = (index * Math.PI) / 4
+        {[0, 1, 2, 3].map((armIndex) => {
+          const angle = (armIndex * Math.PI) / 2
           return (
-            <mesh key={index} position={[0, 0.082, 0]} rotation={[0, angle, 0]}>
-              <boxGeometry args={[2.15, 0.02, 0.035]} />
-              <meshStandardMaterial color="#64748b" metalness={0.8} />
-            </mesh>
+            <group key={armIndex} rotation={[0, angle, 0]}>
+              {/* Radial paddle arm hovering above the fixed deck */}
+              <mesh position={[0.68, 0.01, 0]} castShadow>
+                <boxGeometry args={[0.72, 0.07, 0.06]} />
+                <meshStandardMaterial color="#38bdf8" metalness={0.7} roughness={0.25} />
+              </mesh>
+              {/* Soft wiper blade riding just above the stationary floor */}
+              <mesh position={[0.72, -0.05, 0.03]}>
+                <boxGeometry args={[0.64, 0.07, 0.03]} />
+                <meshStandardMaterial color="#7dd3fc" emissive="#0284c7" emissiveIntensity={0.2} />
+              </mesh>
+            </group>
           )
         })}
       </group>
 
-      {/* Bypass drop port & vertical guide tube to the next platter down */}
+      {/* Fixed circular drop hole cut into the stationary deck + vertical drop tube */}
       {hasBypass && (
-        <group position={[BYPASS_PORT.x, 0, BYPASS_PORT.z]}>
-          <mesh position={[0, 0.095, 0]}>
+        <group position={[INTERIOR_BYPASS_PORT.x, 0, INTERIOR_BYPASS_PORT.z]}>
+          <mesh position={[0, 0.098, 0]}>
             <cylinderGeometry args={[0.25, 0.25, 0.03, 32]} />
             <meshBasicMaterial color="#050a12" />
           </mesh>
-          <mesh position={[0, 0.105, 0]} rotation={[Math.PI / 2, 0, 0]}>
+          <mesh position={[0, 0.108, 0]} rotation={[Math.PI / 2, 0, 0]}>
             <torusGeometry args={[0.27, 0.025, 8, 32]} />
             <meshBasicMaterial color="#f59e0b" />
           </mesh>
-          {/* Translucent vertical drop tube connecting to the next station */}
           <mesh position={[0, -0.88, 0]}>
             <cylinderGeometry args={[0.24, 0.24, 1.62, 24, 1, true]} />
             <meshStandardMaterial
               color="#f59e0b"
               transparent
-              opacity={0.18}
+              opacity={0.2}
               side={THREE.DoubleSide}
               depthWrite={false}
             />
@@ -445,8 +497,113 @@ function Platter({ y, label, accepts, color, type }) {
       <MechanicalGauge type={type} />
 
       <Html position={labelPosition} center transform distanceFactor={8} style={{ pointerEvents: 'none' }}>
-        <div className="w-34 rounded-lg border border-white/15 bg-slate-950/90 px-2 py-1 text-center font-mono text-[9px] tracking-wider text-slate-200 shadow-xl">
-          <span className="block text-[8px] text-slate-400">{label}</span>
+        <div className="w-36 rounded-lg border border-white/15 bg-slate-950/90 px-2 py-1 text-center font-mono text-[9px] tracking-wider text-slate-200 shadow-xl">
+          <span className="block text-[8px] text-slate-400">{label} · FIXED DECK</span>
+          <span style={{ color }}>{accepts}</span>
+        </div>
+      </Html>
+    </group>
+  )
+}
+
+/**
+ * OPTION 2 PLATTER:
+ * Solid rotating turntable disc (zero holes) + stationary angled wiper plow that sweeps rejected shapes
+ * off the outer rim into an external drop funnel mounted outside the platter circumference.
+ */
+function SolidTurntablePlatter({ y, label, accepts, color, type }) {
+  const rotorRef = useRef()
+  const hasBypass = type !== 'return'
+  const labelPosition = [-1.95, 0.25, 0.2]
+
+  useSimulationFrame((_, dt) => {
+    if (rotorRef.current) {
+      rotorRef.current.rotation.y -= dt * 1.45
+    }
+  })
+
+  return (
+    <group position={[0, y, 0]}>
+      {/* Stationary outer mounting ring & brackets supporting the overhead gauge and plow */}
+      <mesh position={[0, -0.04, 0]}>
+        <cylinderGeometry args={[1.45, 1.45, 0.1, 64, 1, true]} />
+        <meshStandardMaterial color="#1e293b" metalness={0.75} roughness={0.35} side={THREE.DoubleSide} />
+      </mesh>
+      <mesh position={[0, 0.095, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[1.42, 0.028, 8, 48]} />
+        <meshBasicMaterial color={color} />
+      </mesh>
+
+      {/* 100% Solid Rotating Turntable Disc (NO holes inside the spinning disc) */}
+      <group ref={rotorRef} position={[0, 0.02, 0]}>
+        <mesh receiveShadow>
+          <cylinderGeometry args={[1.38, 1.38, 0.15, 64]} />
+          <meshStandardMaterial color="#334155" metalness={0.62} roughness={0.3} />
+        </mesh>
+        <mesh position={[0, 0.09, 0]}>
+          <cylinderGeometry args={[0.38, 0.42, 0.06, 24]} />
+          <meshStandardMaterial color="#475569" metalness={0.75} />
+        </mesh>
+        {Array.from({ length: 12 }, (_, index) => {
+          const angle = (index * Math.PI) / 6
+          return (
+            <mesh key={index} position={[0, 0.082, 0]} rotation={[0, angle, 0]}>
+              <boxGeometry args={[2.68, 0.018, 0.03]} />
+              <meshStandardMaterial color="#64748b" metalness={0.8} />
+            </mesh>
+          )
+        })}
+      </group>
+
+      {/* Stationary Wiper Plow + External Rim Drop Funnel mounted outside the spinning disc */}
+      {hasBypass && (
+        <group>
+          {/* Stationary angled wiper plow rail hovering just above the spinning disc */}
+          <mesh position={[-0.25, 0.21, 0.98]} rotation={[0, -0.68, 0]} castShadow>
+            <boxGeometry args={[1.18, 0.14, 0.07]} />
+            <meshStandardMaterial color="#f59e0b" emissive="#d97706" emissiveIntensity={0.3} metalness={0.65} />
+          </mesh>
+          {/* Lip bridge from platter edge into external funnel */}
+          <mesh position={[-0.68, 0.04, 1.18]} rotation={[0.18, -0.52, 0]}>
+            <boxGeometry args={[0.42, 0.05, 0.48]} />
+            <meshStandardMaterial color="#475569" metalness={0.7} />
+          </mesh>
+
+          {/* External Drop Funnel & Vertical Tube (at r = 1.58, completely outside the 1.38 disc) */}
+          <group position={[EXTERNAL_FUNNEL_PORT.x, 0, EXTERNAL_FUNNEL_PORT.z]}>
+            <mesh position={[0, 0.05, 0]}>
+              <cylinderGeometry args={[0.32, 0.24, 0.22, 24, 1, true]} />
+              <meshStandardMaterial color="#d97706" metalness={0.65} side={THREE.DoubleSide} />
+            </mesh>
+            <mesh position={[0, 0.16, 0]} rotation={[Math.PI / 2, 0, 0]}>
+              <torusGeometry args={[0.32, 0.025, 8, 32]} />
+              <meshBasicMaterial color="#fbbf24" />
+            </mesh>
+            {/* External vertical drop tube to next station */}
+            <mesh position={[0, -0.78, 0]}>
+              <cylinderGeometry args={[0.23, 0.23, 1.44, 24, 1, true]} />
+              <meshStandardMaterial
+                color="#f59e0b"
+                transparent
+                opacity={0.24}
+                side={THREE.DoubleSide}
+                depthWrite={false}
+              />
+            </mesh>
+            {/* Angled return feed ramp at bottom of external tube onto the next platter below */}
+            <mesh position={[0.08, -1.52, -0.72]} rotation={[-0.22, 0.12, 0]}>
+              <boxGeometry args={[0.44, 0.06, 1.35]} />
+              <meshStandardMaterial color="#475569" metalness={0.65} />
+            </mesh>
+          </group>
+        </group>
+      )}
+
+      <MechanicalGauge type={type} />
+
+      <Html position={labelPosition} center transform distanceFactor={8} style={{ pointerEvents: 'none' }}>
+        <div className="w-38 rounded-lg border border-white/15 bg-slate-950/90 px-2 py-1 text-center font-mono text-[9px] tracking-wider text-slate-200 shadow-xl">
+          <span className="block text-[8px] text-slate-400">{label} · SOLID DISC</span>
           <span style={{ color }}>{accepts}</span>
         </div>
       </Html>
@@ -472,18 +629,13 @@ function Chute({ platterY, color, binX, binZ, chuteEntryX, chuteZ }) {
 
   return (
     <group>
-      {/* Horizontal transition apron from platter rim to sloped chute */}
-      <group
-        position={[(0.68 + chuteEntryX) / 2, bedY, chuteZ / 2]}
-        rotation={[0, apronYaw, 0]}
-      >
+      <group position={[(0.68 + chuteEntryX) / 2, bedY, chuteZ / 2]} rotation={[0, apronYaw, 0]}>
         <mesh receiveShadow>
           <boxGeometry args={[apronLength + 0.18, 0.1, 0.72]} />
           <meshStandardMaterial color="#475569" metalness={0.65} roughness={0.35} />
         </mesh>
       </group>
 
-      {/* Sloped chute with properly aligned perpendicular side guardrails */}
       <group
         position={[(chuteEntryX + binX) / 2, (bedY + binRimY) / 2, (chuteZ + binZ) / 2]}
         rotation={[0, yaw, 0]}
@@ -535,12 +687,13 @@ function CollectionBin({ type }) {
   )
 }
 
-export function MechanicalSorterScene({ activePreset = 'overview' }) {
+export function MechanicalSorterScene({ activePreset = 'overview', variant = 'paddle' }) {
   const spindleRef = useRef()
+  const PlatterComponent = variant === 'turntable' ? SolidTurntablePlatter : StationaryPaddlePlatter
 
   useSimulationFrame((_, dt) => {
     if (spindleRef.current) {
-      spindleRef.current.rotation.y -= dt * 1.35
+      spindleRef.current.rotation.y -= dt * 1.45
     }
   })
 
@@ -556,24 +709,37 @@ export function MechanicalSorterScene({ activePreset = 'overview' }) {
       <group>
         {/* Central rotating drive shaft */}
         <mesh ref={spindleRef} position={[0, 2.35, 0]}>
-          <cylinderGeometry args={[0.26, 0.26, 7.2, 16]} />
-          <meshStandardMaterial color="#1e293b" metalness={0.8} roughness={0.28} />
+          <cylinderGeometry args={[0.24, 0.24, 7.2, 16]} />
+          <meshStandardMaterial color="#0ea5e9" metalness={0.8} roughness={0.25} />
         </mesh>
+
+        {/* Stationary outer frame support columns anchoring stationary decks/gauges */}
+        {[
+          [-1.32, -0.82],
+          [0.05, -1.48],
+          [-1.45, 0.45],
+        ].map(([x, z]) => (
+          <mesh key={`${x}-${z}`} position={[x, 2.1, z]}>
+            <cylinderGeometry args={[0.065, 0.065, 6.8, 12]} />
+            <meshStandardMaterial color="#334155" metalness={0.75} roughness={0.3} />
+          </mesh>
+        ))}
+
         {/* Heavy machine base */}
         <mesh position={[0, -1.3, 0]} receiveShadow>
           <cylinderGeometry args={[2.1, 2.25, 0.35, 64]} />
           <meshStandardMaterial color="#202d42" metalness={0.5} />
         </mesh>
 
-        {/* Random-start feed hopper & inclined conveyor (offset to z = -0.45 so bypass tubes are 100% clear) */}
+        {/* Random-start feed hopper & inclined conveyor */}
         <FeedHopper />
         <Conveyor position={[-3.55, 2.85, -0.45]} length={6.6} rotation={[0, 0, 0.72]} />
 
-        {/* 4 Rotary Cascade Platters */}
-        <Platter y={5.0} label="STATION 01" accepts="V-GROOVE · SPHERES" color="#22c55e" type="sphere" />
-        <Platter y={3.25} label="STATION 02" accepts="FEELER GATE · CUBES" color="#ef4444" type="cube" />
-        <Platter y={1.5} label="STATION 03" accepts="TRI-NEST · PYRAMIDS" color="#3b82f6" type="pyramid" />
-        <Platter y={-0.25} label="STATION 04" accepts="UNSORTED CATCH TRAY" color="#f59e0b" type="return" />
+        {/* 4 Cascade Stations (either Option 1 Stationary Deck + Sweep Paddles OR Option 2 Solid Turntable + External Funnel) */}
+        <PlatterComponent y={5.0} label="STATION 01" accepts="V-GROOVE · SPHERES" color="#22c55e" type="sphere" />
+        <PlatterComponent y={3.25} label="STATION 02" accepts="FEELER GATE · CUBES" color="#ef4444" type="cube" />
+        <PlatterComponent y={1.5} label="STATION 03" accepts="TRI-NEST · PYRAMIDS" color="#3b82f6" type="pyramid" />
+        <PlatterComponent y={-0.25} label="STATION 04" accepts="UNSORTED CATCH TRAY" color="#f59e0b" type="return" />
 
         {/* 4 Forward-Sloping Exit Chutes */}
         {Object.entries(TYPE_CONFIG).map(([key, cfg]) => (
@@ -595,7 +761,7 @@ export function MechanicalSorterScene({ activePreset = 'overview' }) {
         <CollectionBin type="unsorted" />
 
         {OBJECTS.map((item) => (
-          <MovingObject key={item.id} item={item} />
+          <MovingObject key={item.id} item={item} variant={variant} />
         ))}
       </group>
       <gridHelper args={[32, 32, '#1e3a5f', '#111c2e']} position={[0, -1.48, 0]} />
