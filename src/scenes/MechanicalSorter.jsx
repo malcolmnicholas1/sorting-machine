@@ -63,11 +63,26 @@ const TYPE_CONFIG = {
 }
 
 const STATION_ITEM_Y = [5.34, 3.59, 1.84, 0.09]
-// Option 1: Fixed interior drop hole cut into the stationary deck
-const INTERIOR_BYPASS_PORT = { x: -0.58, z: 0.72 }
+// Angular velocity (rad/s) shared by spindles, paddles, turntables, and objects riding on platters.
+// In Three.js, rotation.y -= dt * ROTOR_OMEGA rotates clockwise viewed from above (-X -> -Z -> +X -> +Z),
+// which corresponds to polar angle θ = atan2(z, x) INCREASING at +ROTOR_OMEGA rad/s.
+const ROTOR_OMEGA = 2.65
+const ENTRY_ANGLE = -2.55 // Back-left (-0.65, -0.43)
+const GAUGE_ANGLE = -0.05 // Right (+0.78, -0.04)
+const BYPASS_ANGLE = 2.21 // Front-left (-0.58, +0.72)
+const PLOW_CONTACT_ANGLE = 1.92 // Front-left where wiper plow intercepts object on solid turntable
+
+// Option 1: Fixed interior drop hole cut into the stationary deck (at angle = BYPASS_ANGLE, r = 0.92)
+const INTERIOR_BYPASS_PORT = {
+  x: Math.cos(BYPASS_ANGLE) * 0.92,
+  z: Math.sin(BYPASS_ANGLE) * 0.92,
+}
 // Option 2: External rim drop funnel mounted outside the solid spinning turntable (r = 1.58 > 1.38 disc)
 const EXTERNAL_FUNNEL_PORT = { x: -0.82, z: 1.35 }
-const ENTRY_PORT = { x: -0.68, z: -0.45 }
+const ENTRY_PORT = {
+  x: Math.cos(ENTRY_ANGLE) * 0.78,
+  z: Math.sin(ENTRY_ANGLE) * 0.78,
+}
 
 const BIN_SLOTS = [
   [-0.24, -0.22],
@@ -101,7 +116,7 @@ const OBJECTS = SEQUENCE.map((type, index) => {
   return {
     id: index,
     type,
-    offset: index * 1.15,
+    offset: index * 1.35,
     lane: (index % 3) - 1,
     slot: BIN_SLOTS[sameTypeIndex % BIN_SLOTS.length],
   }
@@ -159,7 +174,7 @@ function MovingObject({ item, variant }) {
   const isTurntable = variant === 'turntable'
 
   useSimulationFrame((elapsed, dt) => {
-    const cycleDuration = 18.4
+    const cycleDuration = 21.6
     const phase = (elapsed + item.offset) % cycleDuration
     const beltZ = -0.45 + item.lane * 0.22
     const targetY = config.platterY
@@ -173,31 +188,35 @@ function MovingObject({ item, variant }) {
         THREE.MathUtils.lerp(0.88, STATION_ITEM_Y[0], progress),
         THREE.MathUtils.lerp(beltZ, ENTRY_PORT.z, progress * 0.6),
       )
-      group.current.rotation.set(0, phase * 1.8, 0.72 * (1 - progress * 0.25))
+      group.current.rotation.set(0, -phase * 1.8, 0.72 * (1 - progress * 0.25))
       return
     }
 
     const routeTime = phase - 4.4
-    const stationBypassDuration = 1.45
+    // Time to sweep clockwise from ENTRY_ANGLE (-2.55) -> back (-π/2) -> gauge (0) -> BYPASS_ANGLE (+2.21) at ROTOR_OMEGA
+    const sweepArc = BYPASS_ANGLE - ENTRY_ANGLE // 4.76 rad
+    const sweepTime = sweepArc / ROTOR_OMEGA // ~1.80s
+    const dropTime = 0.65
+    const stationBypassDuration = sweepTime + dropTime // ~2.45s
     const totalBypassTime = config.station * stationBypassDuration
 
-    // 2. Cascade through earlier stations
+    // 2. Cascade through earlier stations (clockwise: Entry -> Back -> Gauge on Right -> Front -> Bypass on Front-Left)
     if (routeTime < totalBypassTime) {
       const stationIndex = Math.floor(routeTime / stationBypassDuration)
-      const localProgress = (routeTime % stationBypassDuration) / stationBypassDuration
+      const localTime = routeTime % stationBypassDuration
       const currentY = STATION_ITEM_Y[stationIndex]
       const nextY = STATION_ITEM_Y[stationIndex + 1]
 
       if (!isTurntable) {
-        // OPTION 1 (Paddle): Swept by rotating paddle over stationary deck -> drops through fixed interior hole
-        if (localProgress < 0.55) {
-          const t = localProgress / 0.55
-          const angle = THREE.MathUtils.lerp(Math.PI * 1.18, -Math.PI * 0.68, t)
-          const radius = 0.78
+        // OPTION 1 (Paddle): Swept clockwise by rotating paddle at ROTOR_OMEGA -> drops through fixed interior hole
+        if (localTime < sweepTime) {
+          const t = localTime / sweepTime
+          const angle = ENTRY_ANGLE + localTime * ROTOR_OMEGA
+          const radius = THREE.MathUtils.lerp(0.78, 0.92, t)
           move(group.current, Math.cos(angle) * radius, currentY, Math.sin(angle) * radius)
-          group.current.rotation.set(0, -angle + Math.PI / 2, 0)
-        } else if (localProgress < 0.88) {
-          const t = (localProgress - 0.55) / 0.33
+          group.current.rotation.set(0, -angle - Math.PI / 2, 0)
+        } else if (localTime < sweepTime + dropTime * 0.78) {
+          const t = (localTime - sweepTime) / (dropTime * 0.78)
           move(
             group.current,
             INTERIOR_BYPASS_PORT.x,
@@ -206,7 +225,7 @@ function MovingObject({ item, variant }) {
           )
           group.current.rotation.x += dt * 4.2
         } else {
-          const t = (localProgress - 0.88) / 0.12
+          const t = (localTime - sweepTime - dropTime * 0.78) / (dropTime * 0.22)
           move(
             group.current,
             THREE.MathUtils.lerp(INTERIOR_BYPASS_PORT.x, ENTRY_PORT.x, t),
@@ -215,28 +234,30 @@ function MovingObject({ item, variant }) {
           )
         }
       } else {
-        // OPTION 2 (Turntable): Carried on solid spinning disc -> hits angled wiper plow -> pushed off outer rim into external funnel
-        if (localProgress < 0.42) {
-          const t = localProgress / 0.42
-          const angle = THREE.MathUtils.lerp(Math.PI * 1.18, -Math.PI * 0.38, t)
-          const radius = 0.82
+        // OPTION 2 (Turntable): Rides clockwise on solid spinning disc at ROTOR_OMEGA -> hits wiper plow -> pushed into external funnel
+        const plowSweepTime = (PLOW_CONTACT_ANGLE - ENTRY_ANGLE) / ROTOR_OMEGA
+        const plowSlideTime = sweepTime - plowSweepTime
+
+        if (localTime < plowSweepTime) {
+          const angle = ENTRY_ANGLE + localTime * ROTOR_OMEGA
+          const radius = 0.84
           move(group.current, Math.cos(angle) * radius, currentY, Math.sin(angle) * radius)
-          group.current.rotation.set(0, -angle + Math.PI / 2, 0)
-        } else if (localProgress < 0.6) {
+          group.current.rotation.set(0, -angle - Math.PI / 2, 0)
+        } else if (localTime < sweepTime) {
           // Deflected outward along stationary wiper plow bar off the disc edge into external funnel
-          const t = (localProgress - 0.42) / 0.18
-          const startX = Math.cos(-Math.PI * 0.38) * 0.82
-          const startZ = Math.sin(-Math.PI * 0.38) * 0.82
+          const t = (localTime - plowSweepTime) / plowSlideTime
+          const startX = Math.cos(PLOW_CONTACT_ANGLE) * 0.84
+          const startZ = Math.sin(PLOW_CONTACT_ANGLE) * 0.84
           move(
             group.current,
             THREE.MathUtils.lerp(startX, EXTERNAL_FUNNEL_PORT.x, t),
             currentY - t * 0.08,
             THREE.MathUtils.lerp(startZ, EXTERNAL_FUNNEL_PORT.z, t),
           )
-          group.current.rotation.y += dt * 4.5
-        } else if (localProgress < 0.86) {
+          group.current.rotation.y -= dt * 4.5
+        } else if (localTime < sweepTime + dropTime * 0.72) {
           // Drops straight down external funnel tube outside the platter circumference
-          const t = (localProgress - 0.6) / 0.26
+          const t = (localTime - sweepTime) / (dropTime * 0.72)
           move(
             group.current,
             EXTERNAL_FUNNEL_PORT.x,
@@ -246,7 +267,7 @@ function MovingObject({ item, variant }) {
           group.current.rotation.x += dt * 4.8
         } else {
           // Slides down the angled return chute from external tube back onto next solid turntable
-          const t = (localProgress - 0.86) / 0.14
+          const t = (localTime - sweepTime - dropTime * 0.72) / (dropTime * 0.28)
           move(
             group.current,
             THREE.MathUtils.lerp(EXTERNAL_FUNNEL_PORT.x, ENTRY_PORT.x, t),
@@ -258,27 +279,29 @@ function MovingObject({ item, variant }) {
       return
     }
 
-    // 3. Target station: engage matching mechanical gauge -> deflect into chute -> land in bin slot
+    // 3. Target station: sweep clockwise from ENTRY_ANGLE (-2.55) through back (-π/2) to GAUGE_ANGLE (-0.05) at ROTOR_OMEGA
     const stationTime = routeTime - totalBypassTime
-    const gaugeSweepDuration = 0.85
-    const apronDuration = 0.55
-    const chuteSlideDuration = 2.1
+    const gaugeSweepDuration = (GAUGE_ANGLE - ENTRY_ANGLE) / ROTOR_OMEGA // ~0.94s
+    const apronDuration = 0.5
+    const chuteSlideDuration = 2.0
 
     if (stationTime < gaugeSweepDuration) {
       const t = stationTime / gaugeSweepDuration
-      const angle = THREE.MathUtils.lerp(Math.PI * 1.18, 0.12, t)
-      const radius = THREE.MathUtils.lerp(0.78, 0.62, t)
+      const angle = ENTRY_ANGLE + stationTime * ROTOR_OMEGA
+      const radius = THREE.MathUtils.lerp(0.78, 0.68, t)
       move(group.current, Math.cos(angle) * radius, targetY, Math.sin(angle) * radius)
-      group.current.rotation.set(0, -angle, 0)
+      group.current.rotation.set(0, -angle - Math.PI / 2, 0)
     } else if (stationTime < gaugeSweepDuration + apronDuration) {
       const t = (stationTime - gaugeSweepDuration) / apronDuration
+      const gaugeExitX = Math.cos(GAUGE_ANGLE) * 0.68
+      const gaugeExitZ = Math.sin(GAUGE_ANGLE) * 0.68
       move(
         group.current,
-        THREE.MathUtils.lerp(0.62, config.chuteEntryX, t),
+        THREE.MathUtils.lerp(gaugeExitX, config.chuteEntryX, t),
         targetY,
-        THREE.MathUtils.lerp(0.08, config.chuteZ, t),
+        THREE.MathUtils.lerp(gaugeExitZ, config.chuteZ, t),
       )
-      group.current.rotation.y += dt * 4.0
+      group.current.rotation.y -= dt * 4.0
     } else if (stationTime < gaugeSweepDuration + apronDuration + chuteSlideDuration) {
       const t = (stationTime - gaugeSweepDuration - apronDuration) / chuteSlideDuration
       const slotX = config.binX + item.slot[0]
@@ -424,7 +447,7 @@ function StationaryPaddlePlatter({ y, label, accepts, color, type }) {
 
   useSimulationFrame((_, dt) => {
     if (paddleRef.current) {
-      paddleRef.current.rotation.y -= dt * 1.45
+      paddleRef.current.rotation.y -= dt * ROTOR_OMEGA
     }
   })
 
@@ -460,7 +483,7 @@ function StationaryPaddlePlatter({ y, label, accepts, color, type }) {
                 <boxGeometry args={[0.72, 0.07, 0.06]} />
                 <meshStandardMaterial color="#38bdf8" metalness={0.7} roughness={0.25} />
               </mesh>
-              {/* Soft wiper blade riding just above the stationary floor */}
+              {/* Leading wiper blade facing the clockwise direction of motion */}
               <mesh position={[0.72, -0.05, 0.03]}>
                 <boxGeometry args={[0.64, 0.07, 0.03]} />
                 <meshStandardMaterial color="#7dd3fc" emissive="#0284c7" emissiveIntensity={0.2} />
@@ -518,7 +541,7 @@ function SolidTurntablePlatter({ y, label, accepts, color, type }) {
 
   useSimulationFrame((_, dt) => {
     if (rotorRef.current) {
-      rotorRef.current.rotation.y -= dt * 1.45
+      rotorRef.current.rotation.y -= dt * ROTOR_OMEGA
     }
   })
 
@@ -558,13 +581,13 @@ function SolidTurntablePlatter({ y, label, accepts, color, type }) {
       {/* Stationary Wiper Plow + External Rim Drop Funnel mounted outside the spinning disc */}
       {hasBypass && (
         <group>
-          {/* Stationary angled wiper plow rail hovering just above the spinning disc */}
-          <mesh position={[-0.25, 0.21, 0.98]} rotation={[0, -0.68, 0]} castShadow>
-            <boxGeometry args={[1.18, 0.14, 0.07]} />
+          {/* Stationary angled wiper plow rail aligned to intercept clockwise-moving items and guide them outward */}
+          <mesh position={[-0.56, 0.21, 1.02]} rotation={[0, 0.56, 0]} castShadow>
+            <boxGeometry args={[1.05, 0.14, 0.07]} />
             <meshStandardMaterial color="#f59e0b" emissive="#d97706" emissiveIntensity={0.3} metalness={0.65} />
           </mesh>
           {/* Lip bridge from platter edge into external funnel */}
-          <mesh position={[-0.68, 0.04, 1.18]} rotation={[0.18, -0.52, 0]}>
+          <mesh position={[-0.68, 0.04, 1.18]} rotation={[0.18, 0.52, 0]}>
             <boxGeometry args={[0.42, 0.05, 0.48]} />
             <meshStandardMaterial color="#475569" metalness={0.7} />
           </mesh>
@@ -693,7 +716,7 @@ export function MechanicalSorterScene({ activePreset = 'overview', variant = 'pa
 
   useSimulationFrame((_, dt) => {
     if (spindleRef.current) {
-      spindleRef.current.rotation.y -= dt * 1.45
+      spindleRef.current.rotation.y -= dt * ROTOR_OMEGA
     }
   })
 
