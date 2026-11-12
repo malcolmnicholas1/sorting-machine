@@ -25,6 +25,14 @@ const VISION_CAMERA_PRESETS = [
   { id: 'bins', label: 'SORTED BINS' },
 ]
 
+const ARRIVAL_CAMERA_PRESETS = [
+  { id: 'overview', label: 'OVERVIEW' },
+  { id: 'portal', label: 'WORMHOLE PORTAL' },
+  { id: 'spill', label: 'SPILL & PICKUP' },
+  { id: 'hopper', label: 'HOPPER LOAD' },
+  { id: 'sorter', label: 'SORTING MACHINE' },
+]
+
 const PROTOTYPE_CARDS = [
   {
     id: 'design-01a',
@@ -54,7 +62,8 @@ const PROTOTYPE_CARDS = [
     id: 'design-03',
     badge: '03 · LIVE MODEL',
     title: 'The Unexpected Arrival',
-    description: 'A wormhole brings an influential character through, startling the carrier into spilling the shapes.',
+    description:
+      'A wormhole startles the carrier into spilling the shapes; once gathered and sorted, the pure groups seal the wormhole so everyone can celebrate.',
     style: 'border-violet-300/35 bg-violet-300/10 hover:bg-violet-300/15',
     badgeStyle: 'text-violet-200',
   },
@@ -111,6 +120,7 @@ function App() {
   const [paddleCamera, setPaddleCamera] = useState('overview')
   const [turntableCamera, setTurntableCamera] = useState('overview')
   const [visionCamera, setVisionCamera] = useState('overview')
+  const [arrivalCamera, setArrivalCamera] = useState('overview')
 
   useEffect(() => {
     if (!expandedPrototype) return undefined
@@ -367,23 +377,40 @@ function App() {
           id="design-03"
           eyebrow="TEAM TIME BROS · DESIGN 03"
           title="The Unexpected Arrival"
-          statusLabel="STORY EFFECT"
+          statusLabel="STORY + SORTING LOOP"
+          secondaryStatus="8 STORY BEATS"
           accent="violet"
           bgClass="bg-[#090b19]"
+          heightClass="mt-12 h-[580px] lg:h-[680px]"
           expanded={expandedPrototype === 'arrival'}
           anyExpanded={anyExpanded}
           onExpand={() => setExpandedPrototype('arrival')}
           onClose={() => setExpandedPrototype(null)}
+          subHeader={
+            <CameraPresetBar
+              presets={ARRIVAL_CAMERA_PRESETS}
+              activePreset={arrivalCamera}
+              onSelect={setArrivalCamera}
+            />
+          }
           leftHud={
             <>
-              <span className="text-violet-300">STORY BEAT</span>
+              <span className="text-violet-300">STORY ARC</span>
               <br />
-              PORTAL OPENS → VISITOR ARRIVES → BOX SPILLS
+              PORTAL → SPILL → GATHER → SORT → SEAL WORMHOLE → CELEBRATE!
             </>
           }
-          rightHud="DRAG TO ORBIT · SCROLL TO ZOOM"
+          rightHud={
+            <>
+              <span className="text-white">CHALLENGE INTEGRATION</span>
+              <br />
+              SORTED SHAPES SEAL THE WORMHOLE RIFT
+              <br />
+              TIMELINE RESTORED · EVERYONE HAPPY
+            </>
+          }
         >
-          <ArrivalEffectScene />
+          <ArrivalEffectScene activePreset={arrivalCamera} />
         </PrototypeStage>
       </section>
 
