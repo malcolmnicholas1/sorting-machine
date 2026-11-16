@@ -4,6 +4,7 @@ import teamLogo from './assets/team-time-bros-logo.png'
 import { PrototypeStage } from './components/PrototypeStage.jsx'
 import { ArrivalEffectScene } from './scenes/ArrivalEffect.jsx'
 import { MechanicalSorterScene } from './scenes/MechanicalSorter.jsx'
+import { VisionFlipperSorterScene } from './scenes/VisionFlipperSorter.jsx'
 import { VisionSorterScene } from './scenes/VisionSorter.jsx'
 
 const MECHANICAL_CAMERA_PRESETS = [
@@ -22,6 +23,15 @@ const VISION_CAMERA_PRESETS = [
   { id: 'scanner', label: 'VISION GANTRY' },
   { id: 'pick', label: 'PICK NEST' },
   { id: 'robot', label: 'ROBOT ARM' },
+  { id: 'bins', label: 'SORTED BINS' },
+]
+
+const FLIPPER_CAMERA_PRESETS = [
+  { id: 'overview', label: 'OVERVIEW' },
+  { id: 'hopper', label: 'HOPPER' },
+  { id: 'scanner', label: 'VISION GANTRY' },
+  { id: 'flipper', label: 'SERVO FLIPPER' },
+  { id: 'chutes', label: 'CHUTE LANES' },
   { id: 'bins', label: 'SORTED BINS' },
 ]
 
@@ -52,9 +62,18 @@ const PROTOTYPE_CARDS = [
   },
   {
     id: 'design-02',
-    badge: '02 · LIVE MODEL',
+    badge: '02A · VISION + ARM',
     title: 'Vision-Guided Pick & Place',
     description: 'A camera classifies each shape; a robotic arm moves it to the matching bin.',
+    style: 'border-cyan-300/35 bg-cyan-300/10 hover:bg-cyan-300/15',
+    badgeStyle: 'text-cyan-200',
+  },
+  {
+    id: 'design-02b',
+    badge: '02B · VISION + FLIPPER',
+    title: 'Vision-Guided Flipper & Chutes',
+    description:
+      'A camera classifies each shape on the belt and angles a high-speed flipper to direct it down the matching chute.',
     style: 'border-cyan-300/35 bg-cyan-300/10 hover:bg-cyan-300/15',
     badgeStyle: 'text-cyan-200',
   },
@@ -120,6 +139,7 @@ function App() {
   const [paddleCamera, setPaddleCamera] = useState('overview')
   const [turntableCamera, setTurntableCamera] = useState('overview')
   const [visionCamera, setVisionCamera] = useState('overview')
+  const [flipperCamera, setFlipperCamera] = useState('overview')
   const [arrivalCamera, setArrivalCamera] = useState('overview')
 
   useEffect(() => {
@@ -251,7 +271,7 @@ function App() {
           </p>
         </div>
 
-        <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {PROTOTYPE_CARDS.map((card) => (
             <a
               key={card.id}
@@ -335,7 +355,7 @@ function App() {
 
         <PrototypeStage
           id="design-02"
-          eyebrow="TEAM TIME BROS · DESIGN 02"
+          eyebrow="TEAM TIME BROS · DESIGN 02A"
           title="Vision-Guided Pick & Place"
           statusLabel="LIVE CV + 6-AXIS ARM"
           secondaryStatus="4 TARGET BINS"
@@ -371,6 +391,46 @@ function App() {
           }
         >
           <VisionSorterScene activePreset={visionCamera} />
+        </PrototypeStage>
+
+        <PrototypeStage
+          id="design-02b"
+          eyebrow="TEAM TIME BROS · DESIGN 02B"
+          title="Vision-Guided Flipper & Chutes"
+          statusLabel="LIVE CV + SERVO FLIPPER"
+          secondaryStatus="4 CHUTE LANES"
+          accent="cyan"
+          bgClass="bg-[#070d18]"
+          heightClass="mt-12 h-[580px] lg:h-[680px]"
+          expanded={expandedPrototype === 'vision-flipper'}
+          anyExpanded={anyExpanded}
+          onExpand={() => setExpandedPrototype('vision-flipper')}
+          onClose={() => setExpandedPrototype(null)}
+          subHeader={
+            <CameraPresetBar
+              presets={FLIPPER_CAMERA_PRESETS}
+              activePreset={flipperCamera}
+              onSelect={setFlipperCamera}
+            />
+          }
+          leftHud={
+            <>
+              <span className="text-cyan-300">PIPELINE</span>
+              <br />
+              HOPPER → CV RETICLE SCAN → SERVO FLIPPER → 4 CHUTE LANES
+            </>
+          }
+          rightHud={
+            <>
+              <span className="text-white">VISION &amp; DIVERTER</span>
+              <br />
+              CAMERA SETS FLIPPER ANGLE (-28° TO +28°)
+              <br />
+              GRAVITY CHUTES → 4 SORTED BINS
+            </>
+          }
+        >
+          <VisionFlipperSorterScene activePreset={flipperCamera} />
         </PrototypeStage>
 
         <PrototypeStage
