@@ -79,10 +79,10 @@ const PROTOTYPE_CARDS = [
   },
   {
     id: 'design-03',
-    badge: '03 · LIVE MODEL',
+    badge: '03 · 5 TEAM TIME BROS',
     title: 'The Unexpected Arrival',
     description:
-      'A wormhole startles the carrier into spilling the shapes; once gathered and sorted, the pure groups seal the wormhole so everyone can celebrate.',
+      '4 teammates carrying the box are startled by the 5th arriving via wormhole; after sorting, the 4 carry the sorted items from the bins to the portal to close it and all 5 dance!',
     style: 'border-violet-300/35 bg-violet-300/10 hover:bg-violet-300/15',
     badgeStyle: 'text-violet-200',
   },
@@ -436,8 +436,8 @@ function App() {
         <PrototypeStage
           id="design-03"
           eyebrow="TEAM TIME BROS · DESIGN 03"
-          title="The Unexpected Arrival"
-          statusLabel="STORY + SORTING LOOP"
+          title="The Unexpected Arrival · All 5 Team Time Bros"
+          statusLabel="5 TEAMMATES + SORTING LOOP"
           secondaryStatus="8 STORY BEATS"
           accent="violet"
           bgClass="bg-[#090b19]"
@@ -455,18 +455,18 @@ function App() {
           }
           leftHud={
             <>
-              <span className="text-violet-300">STORY ARC</span>
+              <span className="text-violet-300">5-PERSON STORY ARC</span>
               <br />
-              PORTAL → SPILL → GATHER → SORT → SEAL WORMHOLE → CELEBRATE!
+              4 CARRY BOX → 5TH ARRIVES → SPILL &amp; SORT → CARRY TO PORTAL → 5 DANCE!
             </>
           }
           rightHud={
             <>
-              <span className="text-white">CHALLENGE INTEGRATION</span>
+              <span className="text-white">TEAMWORK &amp; INTEGRATION</span>
               <br />
-              SORTED SHAPES SEAL THE WORMHOLE RIFT
+              EACH BRO COLLECTS 1 BIN → 4 PORTAL PEDESTALS
               <br />
-              TIMELINE RESTORED · EVERYONE HAPPY
+              WORMHOLE SEALED · ALL 5 CELEBRATE
             </>
           }
         >
